@@ -55,6 +55,29 @@ const publicDir = path.join(__dirname, '../../public');
 if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
 }
+
+// 添加调试中间件，记录对/public路径的访问请求
+app.use('/public', (req, res, next) => {
+  const filePath = path.join(publicDir, req.path);
+  console.log(`[静态文件请求] 路径: ${req.path}`);
+  console.log(`[静态文件请求] 完整路径: ${filePath}`);
+  console.log(`[静态文件请求] 文件存在: ${fs.existsSync(filePath)}`);
+  
+  // 如果请求的是头像文件
+  if (req.path.includes('/avatars/')) {
+    console.log('[头像文件请求]', req.path);
+    // 列出avatars目录中的文件
+    const avatarsDir = path.join(publicDir, 'avatars');
+    if (fs.existsSync(avatarsDir)) {
+      console.log('[头像目录内容]', fs.readdirSync(avatarsDir));
+    } else {
+      console.log('[头像目录不存在]', avatarsDir);
+    }
+  }
+  
+  next();
+});
+
 app.use('/public', express.static(publicDir));
 
 // 路由

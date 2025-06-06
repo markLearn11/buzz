@@ -1,11 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
 
-import { RootState } from '../store';
+import { RootState, useAppDispatch } from '../store';
 import { setActiveTab } from '../store/slices/appSlice';
 
 // 屏幕
@@ -20,6 +20,8 @@ import VideoEditorScreen from '../screens/VideoEditorScreen';
 import ChatScreen from '../screens/ChatScreen';
 import VideoDetailScreen from '../screens/VideoDetailScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -49,8 +51,16 @@ const CreateStack = () => (
   </Stack.Navigator>
 );
 
+const ProfileStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="UserProfile" component={ProfileScreen} />
+    <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+  </Stack.Navigator>
+);
+
 const MainTabs = () => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   
   return (
     <Tab.Navigator
@@ -95,7 +105,7 @@ const MainTabs = () => {
       <Tab.Screen name="Discover" component={DiscoverScreen} />
       <Tab.Screen name="Create" component={CreateStack} options={{ tabBarLabel: '' }} />
       <Tab.Screen name="Inbox" component={InboxStack} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 };

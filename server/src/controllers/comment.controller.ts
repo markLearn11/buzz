@@ -288,4 +288,29 @@ export const deleteComment = async (req: Request, res: Response) => {
       message: error.message || '服务器错误'
     });
   }
+};
+
+// 检查评论点赞状态
+export const checkCommentLikeStatus = async (req: Request, res: Response) => {
+  try {
+    const commentId = req.params.commentId;
+    
+    // 检查评论是否存在
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      throw new AppError('评论不存在', 404);
+    }
+    
+    // 检查用户是否已点赞
+    const isLiked = comment.likes.includes(req.user._id);
+    
+    res.json({
+      isLiked,
+      commentId
+    });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || '服务器错误'
+    });
+  }
 }; 

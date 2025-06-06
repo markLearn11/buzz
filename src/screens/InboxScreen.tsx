@@ -9,11 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { RootState } from '../store';
+import { RootState, useAppDispatch } from '../store';
 import {
   fetchConversationsStart,
   fetchConversationsSuccess,
@@ -102,7 +102,7 @@ const DUMMY_USERS = {
 
 const InboxScreen = () => {
   const navigation = useNavigation();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { conversations, isLoading } = useSelector((state: RootState) => state.chat);
   
   useEffect(() => {

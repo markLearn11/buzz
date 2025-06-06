@@ -404,4 +404,27 @@ export const updateVideo = async (req: RequestWithFiles, res: Response) => {
       message: error.message || '服务器错误'
     });
   }
+};
+
+// 检查视频点赞状态
+export const checkVideoLikeStatus = async (req: Request, res: Response) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    
+    if (!video) {
+      throw new AppError('视频不存在', 404);
+    }
+    
+    // 检查用户是否已点赞
+    const isLiked = video.likes.includes(req.user._id);
+    
+    res.json({ 
+      isLiked,
+      videoId: req.params.id 
+    });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || '服务器错误'
+    });
+  }
 }; 

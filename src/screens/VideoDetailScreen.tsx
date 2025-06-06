@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -11,14 +11,24 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Video } from 'expo-av';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { RootState } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
+import { likeVideoAsync, unlikeVideoAsync, checkVideoLikeStatusAsync } from '../store/slices/videosSlice';
+import { fetchVideoCommentsAsync, addCommentAsync, likeCommentAsync, unlikeCommentAsync, Comment as CommentType, checkCommentLikeStatusAsync } from '../store/slices/commentsSlice';
+import { fetchVideoByIdAsync } from '../store/slices/videosSlice';
+import { formatTime } from '../utils/timeUtils';
+import api from '../services/api';
 
 // 定义类型
 interface Comment {
@@ -51,8 +61,8 @@ type RootStackParamList = {
 // 模拟评论数据
 const DUMMY_COMMENTS: Comment[] = [
   {
-    id: 'comment1',
-    userId: 'user1',
+    id: '507f1f77bcf86cd799439021',
+    userId: '507f1f77bcf86cd799439001',
     username: '创作者小明',
     avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
     text: '这个视频拍得真棒！请问是用什么相机拍的？',
@@ -61,8 +71,8 @@ const DUMMY_COMMENTS: Comment[] = [
     replies: [],
   },
   {
-    id: 'comment2',
-    userId: 'user2',
+    id: '507f1f77bcf86cd799439022',
+    userId: '507f1f77bcf86cd799439002',
     username: '旅行达人',
     avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
     text: '画面非常清晰，构图也很好，学习了！',
@@ -70,8 +80,8 @@ const DUMMY_COMMENTS: Comment[] = [
     createdAt: Date.now() - 7200000,
     replies: [
       {
-        id: 'reply1',
-        userId: 'currentUser',
+        id: '507f1f77bcf86cd799439031',
+        userId: '507f1f77bcf86cd799439003',
         username: '我',
         avatar: 'https://randomuser.me/api/portraits/men/85.jpg',
         text: '谢谢夸奖！',
@@ -81,8 +91,8 @@ const DUMMY_COMMENTS: Comment[] = [
     ],
   },
   {
-    id: 'comment3',
-    userId: 'user3',
+    id: '507f1f77bcf86cd799439023',
+    userId: '507f1f77bcf86cd799439003',
     username: '美食博主',
     avatar: 'https://randomuser.me/api/portraits/men/67.jpg',
     text: '可以分享一下拍摄地点吗？看起来很美',
@@ -115,7 +125,8 @@ const checkVideoUrl = async (url: string): Promise<boolean> => {
     return response.status >= 200 && response.status < 300;
   } catch (error) {
     console.error('视频URL检查失败:', error);
-    return false;
+    // 即使检查失败，我们也尝试播放视频
+    return true;
   }
 };
 
@@ -127,6 +138,18 @@ const VideoDetailScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  
+  // 添加本地状态来管理点赞
+  const [localVideoLikes, setLocalVideoLikes] = useState<number | null>(null);
+  const [localIsLiked, setLocalIsLiked] = useState<boolean | null>(null);
+  
+  // 添加本地状态来管理评论点赞
+  const [localCommentLikes, setLocalCommentLikes] = useState<{[commentId: string]: number}>({});
+  const [localCommentIsLiked, setLocalCommentIsLiked] = useState<{[commentId: string]: boolean}>({});
+  const [processingLikes, setProcessingLikes] = useState<{[commentId: string]: boolean}>({});
   
   // 从全局状态获取是否应该暂停所有视频
   const shouldPauseAllVideos = useSelector((state: RootState) => state.app.shouldPauseAllVideos);
@@ -135,6 +158,10 @@ const VideoDetailScreen = () => {
   const videos = useSelector((state: RootState) => state.videos.videos) as any[];
   const video = videos.find(v => v.id === videoId) || null;
   const [videoUrl, setVideoUrl] = useState(video?.videoUrl || '');
+  
+  // 获取评论数据
+  const { comments, loading: commentsLoading, hasMore, page } = useAppSelector(state => state.comments);
+  const dispatch = useAppDispatch();
   
   // 根据平台调整字体大小
   const usernameFontSize = Platform.OS === 'ios' ? 15 : 14;
@@ -149,21 +176,53 @@ const VideoDetailScreen = () => {
   // 根据全局状态和本地状态决定视频是否应该播放
   const shouldPlay = !isPaused && isVideoTabActive && !shouldPauseAllVideos;
   
-  // 在组件挂载时检查视频URL
+  // 添加防抖状态
+  const [isProcessingVideoLike, setIsProcessingVideoLike] = useState(false);
+  
+  // 添加动画值
+  const likeAnimationScale = useRef(new Animated.Value(1)).current;
+  const likeAnimationOpacity = useRef(new Animated.Value(1)).current;
+  
+  // 点赞动画函数
+  const animateLike = () => {
+    // 重置动画值
+    likeAnimationScale.setValue(1);
+    likeAnimationOpacity.setValue(1);
+    
+    // 创建动画序列
+    Animated.sequence([
+      // 先放大
+      Animated.timing(likeAnimationScale, {
+        toValue: 1.5,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      // 再缩小回原大小
+      Animated.timing(likeAnimationScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+  
+  // 同步视频点赞状态到本地状态
   useEffect(() => {
     if (video) {
-      const verifyVideoUrl = async () => {
-        const isValid = await checkVideoUrl(video.videoUrl);
-        if (!isValid) {
-          console.warn('视频URL无效，使用备用视频');
-          // 使用更可靠的备用视频
-          setVideoUrl('https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
-        } else {
-          setVideoUrl(video.videoUrl);
-        }
-      };
-      
-      verifyVideoUrl();
+      if (localVideoLikes === null) {
+        setLocalVideoLikes(video.likes);
+      }
+      if (localIsLiked === null) {
+        setLocalIsLiked(video.isLiked || false);
+      }
+    }
+  }, [video, localVideoLikes, localIsLiked]);
+  
+  // 在组件挂载时设置视频URL
+  useEffect(() => {
+    if (video) {
+      console.log('设置视频URL:', video.videoUrl);
+      setVideoUrl(video.videoUrl);
     }
   }, [video]);
   
@@ -184,11 +243,283 @@ const VideoDetailScreen = () => {
     };
   }, [shouldPlay]);
   
+  // 检查用户是否已登录，如果没有则自动登录测试账号
+  useEffect(() => {
+    const checkAuthAndLogin = async () => {
+      try {
+        // 检查是否有token
+        const token = await AsyncStorage.getItem('token');
+        
+        if (!token) {
+          console.log('未找到token，尝试登录测试账号...');
+          // 登录测试账号
+          const response = await api.post('/auth/login', {
+            email: 'test@example.com',
+            password: 'password123'
+          });
+          
+          // 保存token
+          if (response.data && response.data.token) {
+            await AsyncStorage.setItem('token', response.data.token);
+            console.log('测试账号登录成功，已保存token');
+          }
+        } else {
+          console.log('已有token，无需重新登录');
+        }
+      } catch (error) {
+        console.error('登录失败:', error);
+        Alert.alert('登录失败', '无法自动登录测试账号，点赞功能可能无法正常工作');
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+    
+    checkAuthAndLogin();
+  }, []);
+  
+  // 在组件挂载时获取视频详情和评论
+  useEffect(() => {
+    if (videoId && !isAuthChecking) {
+      dispatch(fetchVideoByIdAsync(videoId));
+      dispatch(fetchVideoCommentsAsync({ videoId, page: 1 }));
+      
+      // 检查视频点赞状态
+      dispatch(checkVideoLikeStatusAsync(videoId));
+    }
+  }, [dispatch, videoId, isAuthChecking]);
+  
+  // 同步评论点赞状态到本地
+  useEffect(() => {
+    if (comments.length > 0) {
+      // 检查所有评论的点赞状态
+      comments.forEach(comment => {
+        dispatch(checkCommentLikeStatusAsync(comment.id));
+        
+        // 检查回复的点赞状态
+        if (comment.replies && comment.replies.length > 0) {
+          comment.replies.forEach(reply => {
+            dispatch(checkCommentLikeStatusAsync(reply.id));
+          });
+        }
+      });
+    }
+  }, [comments, dispatch]);
+  
+  // 加载更多评论
+  const loadMoreComments = () => {
+    if (hasMore && !commentsLoading && videoId) {
+      dispatch(fetchVideoCommentsAsync({ videoId, page: page + 1, limit: 20 }));
+    }
+  };
+  
+  // 提交评论
+  const handleSubmitComment = async () => {
+    if (!commentText.trim()) return;
+    
+    try {
+      setIsSubmitting(true);
+      await dispatch(addCommentAsync({ videoId, content: commentText })).unwrap();
+      setCommentText('');
+    } catch (error: any) {
+      Alert.alert('评论失败', error.message || '添加评论失败，请重试');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // 点赞视频 - 添加动画效果
+  const handleLikeVideo = async () => {
+    if (!video || isProcessingVideoLike) return;
+    
+    try {
+      // 标记为处理中
+      setIsProcessingVideoLike(true);
+      
+      // 使用本地状态来立即更新UI
+      const currentIsLiked = localIsLiked !== null ? localIsLiked : (video.isLiked || false);
+      const currentLikes = localVideoLikes !== null ? localVideoLikes : video.likes;
+      
+      // 更新本地状态
+      setLocalIsLiked(!currentIsLiked);
+      setLocalVideoLikes(currentIsLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1);
+      
+      // 播放动画
+      if (!currentIsLiked) {
+        animateLike();
+      }
+      
+      console.log('点赞状态更新:', {
+        之前: { isLiked: currentIsLiked, likes: currentLikes },
+        之后: { isLiked: !currentIsLiked, likes: currentIsLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1 }
+      });
+      
+      // 发送API请求
+      if (currentIsLiked) {
+        const result = await dispatch(unlikeVideoAsync(video.id)).unwrap();
+        console.log('取消点赞结果:', result);
+      } else {
+        const result = await dispatch(likeVideoAsync(video.id)).unwrap();
+        console.log('点赞结果:', result);
+      }
+    } catch (error: any) {
+      // 如果API请求失败，恢复原来的状态
+      console.error('点赞操作失败:', error);
+      
+      // 恢复本地状态
+      setLocalIsLiked(video.isLiked || false);
+      setLocalVideoLikes(video.likes);
+      
+      Alert.alert('操作失败', error.message || '点赞操作失败，请重试');
+    } finally {
+      // 取消处理中状态
+      setIsProcessingVideoLike(false);
+    }
+  };
+  
+  // 评论点赞动画
+  const commentLikeAnimations = useRef<{[commentId: string]: {
+    scale: Animated.Value,
+    opacity: Animated.Value
+  }}>({}).current;
+  
+  // 获取或创建评论点赞动画
+  const getCommentLikeAnimation = (commentId: string) => {
+    if (!commentLikeAnimations[commentId]) {
+      commentLikeAnimations[commentId] = {
+        scale: new Animated.Value(1),
+        opacity: new Animated.Value(1)
+      };
+    }
+    return commentLikeAnimations[commentId];
+  };
+  
+  // 播放评论点赞动画
+  const animateCommentLike = (commentId: string) => {
+    const animation = getCommentLikeAnimation(commentId);
+    
+    // 重置动画值
+    animation.scale.setValue(1);
+    animation.opacity.setValue(1);
+    
+    // 创建动画序列
+    Animated.sequence([
+      // 先放大
+      Animated.timing(animation.scale, {
+        toValue: 1.5,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      // 再缩小回原大小
+      Animated.timing(animation.scale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    // 添加颜色闪烁效果
+    Animated.sequence([
+      Animated.timing(animation.opacity, {
+        toValue: 0.7,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animation.opacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+  
+  // 点赞评论 - 添加动画效果
+  const handleLikeComment = async (commentId: string, isLiked: boolean) => {
+    // 防止重复点击
+    if (processingLikes[commentId]) return;
+    
+    try {
+      // 标记为处理中
+      setProcessingLikes(prev => ({...prev, [commentId]: true}));
+      
+      // 获取当前状态
+      const currentIsLiked = localCommentIsLiked[commentId] !== undefined 
+        ? localCommentIsLiked[commentId] 
+        : isLiked;
+        
+      const currentLikes = localCommentLikes[commentId] !== undefined
+        ? localCommentLikes[commentId]
+        : (comments.find(c => c.id === commentId)?.likes || 
+           comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.likes || 
+           0);
+      
+      // 更新本地状态
+      setLocalCommentIsLiked(prev => ({
+        ...prev, 
+        [commentId]: !currentIsLiked
+      }));
+      
+      setLocalCommentLikes(prev => ({
+        ...prev,
+        [commentId]: currentIsLiked 
+          ? Math.max(0, currentLikes - 1) 
+          : currentLikes + 1
+      }));
+      
+      // 播放动画
+      if (!currentIsLiked) {
+        animateCommentLike(commentId);
+      }
+      
+      console.log('评论点赞状态更新:', {
+        commentId,
+        之前: { isLiked: currentIsLiked, likes: currentLikes },
+        之后: { 
+          isLiked: !currentIsLiked, 
+          likes: currentIsLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1 
+        }
+      });
+      
+      // 发送API请求
+      if (currentIsLiked) {
+        await dispatch(unlikeCommentAsync(commentId)).unwrap();
+      } else {
+        await dispatch(likeCommentAsync(commentId)).unwrap();
+      }
+    } catch (error: any) {
+      // 如果API请求失败，恢复原来的状态
+      console.error('评论点赞操作失败:', error);
+      
+      // 恢复本地状态
+      const originalIsLiked = comments.find(c => c.id === commentId)?.isLiked || 
+                             comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.isLiked || 
+                             false;
+      
+      const originalLikes = comments.find(c => c.id === commentId)?.likes || 
+                           comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.likes || 
+                           0;
+      
+      setLocalCommentIsLiked(prev => ({
+        ...prev,
+        [commentId]: originalIsLiked
+      }));
+      
+      setLocalCommentLikes(prev => ({
+        ...prev,
+        [commentId]: originalLikes
+      }));
+      
+      Alert.alert('操作失败', error.message || '点赞操作失败，请重试');
+    } finally {
+      // 取消处理中状态
+      setProcessingLikes(prev => ({...prev, [commentId]: false}));
+    }
+  };
+  
   const togglePlayPause = () => {
     setIsPaused(!isPaused);
   };
   
-  if (!video) {
+  if (!video || isAuthChecking) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -199,73 +530,132 @@ const VideoDetailScreen = () => {
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.notFoundContainer}>
-          <Text style={styles.notFoundText}>未找到视频</Text>
+          {isAuthChecking ? (
+            <>
+              <ActivityIndicator size="large" color="#FF4040" />
+              <Text style={styles.notFoundText}>正在准备点赞功能...</Text>
+            </>
+          ) : (
+            <Text style={styles.notFoundText}>未找到视频</Text>
+          )}
         </View>
       </SafeAreaView>
     );
   }
   
-  const renderComment = ({ item }: { item: Comment }) => (
-    <View style={styles.commentContainer}>
-      <Image source={{ uri: item.avatar }} style={styles.commentAvatar} />
-      <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{item.username}</Text>
-        <Text style={styles.commentText}>{item.text}</Text>
-        <View style={styles.commentActions}>
-          <Text style={styles.commentTime}>
-            {formatTime(item.createdAt)}
-          </Text>
-          <TouchableOpacity style={styles.commentAction}>
-            <Ionicons name="heart-outline" size={16} color="#999" />
-            <Text style={styles.actionText}>{item.likes}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.commentAction}>
-            <Text style={styles.actionText}>回复</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {item.replies && item.replies.length > 0 && (
-          <View style={styles.repliesContainer}>
-            {item.replies.map(reply => (
-              <View key={reply.id} style={styles.replyContainer}>
-                <Image source={{ uri: reply.avatar }} style={styles.replyAvatar} />
-                <View style={styles.replyContent}>
-                  <Text style={styles.commentUsername}>{reply.username}</Text>
-                  <Text style={styles.commentText}>{reply.text}</Text>
-                  <View style={styles.commentActions}>
-                    <Text style={styles.commentTime}>
-                      {formatTime(reply.createdAt)}
-                    </Text>
-                    <TouchableOpacity style={styles.commentAction}>
-                      <Ionicons name="heart-outline" size={16} color="#999" />
-                      <Text style={styles.actionText}>{reply.likes}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            ))}
+  const renderComment = ({ item }: { item: CommentType }) => {
+    // 获取本地点赞状态
+    const isLiked = localCommentIsLiked[item.id] !== undefined 
+      ? localCommentIsLiked[item.id] 
+      : item.isLiked;
+      
+    const likesCount = localCommentLikes[item.id] !== undefined
+      ? localCommentLikes[item.id]
+      : item.likes;
+    
+    return (
+      <View style={styles.commentContainer}>
+        <Image source={{ uri: item.avatar }} style={styles.commentAvatar} />
+        <View style={styles.commentContent}>
+          <Text style={styles.commentUsername}>{item.username}</Text>
+          <Text style={styles.commentText}>{item.content}</Text>
+          <View style={styles.commentActions}>
+            <Text style={styles.commentTime}>
+              {formatTime(item.createdAt)}
+            </Text>
+            <TouchableOpacity 
+              style={styles.commentAction}
+              onPress={() => handleLikeComment(item.id, isLiked)}
+              disabled={processingLikes[item.id]}
+            >
+              <Animated.View
+                style={{
+                  transform: [{ scale: getCommentLikeAnimation(item.id).scale }],
+                  opacity: getCommentLikeAnimation(item.id).opacity,
+                  width: 20,
+                  height: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons 
+                  name={isLiked ? "heart" : "heart-outline"} 
+                  size={16} 
+                  color={isLiked ? "#FF4040" : "#999"} 
+                />
+              </Animated.View>
+              <Text style={[
+                styles.actionText,
+                isLiked && { color: "#FF4040" }
+              ]}>
+                {likesCount}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.commentAction}>
+              <Text style={styles.actionText}>回复</Text>
+            </TouchableOpacity>
           </View>
-        )}
+          
+          {item.replies && item.replies.length > 0 && (
+            <View style={styles.repliesContainer}>
+              {item.replies.map(reply => {
+                // 获取回复的本地点赞状态
+                const replyIsLiked = localCommentIsLiked[reply.id] !== undefined 
+                  ? localCommentIsLiked[reply.id] 
+                  : reply.isLiked;
+                  
+                const replyLikesCount = localCommentLikes[reply.id] !== undefined
+                  ? localCommentLikes[reply.id]
+                  : reply.likes;
+                
+                return (
+                  <View key={reply.id} style={styles.replyContainer}>
+                    <Image source={{ uri: reply.avatar }} style={styles.replyAvatar} />
+                    <View style={styles.replyContent}>
+                      <Text style={styles.commentUsername}>{reply.username}</Text>
+                      <Text style={styles.commentText}>{reply.content}</Text>
+                      <View style={styles.commentActions}>
+                        <Text style={styles.commentTime}>
+                          {formatTime(reply.createdAt)}
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.commentAction}
+                          onPress={() => handleLikeComment(reply.id, replyIsLiked)}
+                          disabled={processingLikes[reply.id]}
+                        >
+                          <Animated.View
+                            style={{
+                              transform: [{ scale: getCommentLikeAnimation(reply.id).scale }],
+                              opacity: getCommentLikeAnimation(reply.id).opacity,
+                              width: 20,
+                              height: 20,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Ionicons 
+                              name={replyIsLiked ? "heart" : "heart-outline"} 
+                              size={16} 
+                              color={replyIsLiked ? "#FF4040" : "#999"} 
+                            />
+                          </Animated.View>
+                          <Text style={[
+                            styles.actionText,
+                            replyIsLiked && { color: "#FF4040" }
+                          ]}>
+                            {replyLikesCount}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </View>
-    </View>
-  );
-  
-  const formatTime = (timestamp: number): string => {
-    const now = new Date();
-    const commentDate = new Date(timestamp);
-    
-    const diffTime = Math.abs(now.getTime() - commentDate.getTime());
-    const diffMinutes = Math.floor(diffTime / (1000 * 60));
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffMinutes < 60) {
-      return `${diffMinutes}分钟前`;
-    } else if (diffHours < 24) {
-      return `${diffHours}小时前`;
-    } else {
-      return `${diffDays}天前`;
-    }
+    );
   };
   
   return (
@@ -289,9 +679,26 @@ const VideoDetailScreen = () => {
           onError={(error) => {
             console.error('视频播放错误:', error);
             setHasError(true);
+            
+            // 尝试重新加载视频
+            setTimeout(() => {
+              if (videoRef.current && video) {
+                console.log('尝试重新加载视频:', video.videoUrl);
+                videoRef.current.loadAsync({ uri: video.videoUrl }, {}, false);
+                setIsLoading(true);
+                setHasError(false);
+              }
+            }, 2000);
           }}
-          onLoadStart={() => setIsLoading(true)}
-          onLoad={() => setIsLoading(false)}
+          onLoadStart={() => {
+            console.log('开始加载视频:', videoUrl);
+            setIsLoading(true);
+          }}
+          onLoad={() => {
+            console.log('视频加载成功:', videoUrl);
+            setIsLoading(false);
+            setHasError(false);
+          }}
         />
         
         <TouchableOpacity 
@@ -315,18 +722,6 @@ const VideoDetailScreen = () => {
           <View style={styles.loaderOverlay}>
             <Ionicons name="alert-circle-outline" size={40} color="#FF4040" />
             <Text style={styles.errorText}>视频加载失败</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => {
-                setHasError(false);
-                setIsLoading(true);
-                if (videoRef.current) {
-                  videoRef.current.loadAsync({ uri: videoUrl }, {}, false);
-                }
-              }}
-            >
-              <Text style={styles.retryButtonText}>重试</Text>
-            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -350,6 +745,31 @@ const VideoDetailScreen = () => {
           >
             @{video.userName}
           </Text>
+          
+          <TouchableOpacity 
+            style={styles.likeButton}
+            onPress={handleLikeVideo}
+            disabled={isProcessingVideoLike || isLoading || hasError}
+          >
+            <Animated.View
+              style={{
+                transform: [{ scale: likeAnimationScale }],
+                opacity: likeAnimationOpacity,
+              }}
+            >
+              <Ionicons 
+                name={localIsLiked ? "heart" : "heart-outline"} 
+                size={24} 
+                color={localIsLiked ? "#FF4040" : "white"} 
+              />
+            </Animated.View>
+            <Text style={[
+              styles.likeCount,
+              localIsLiked && { color: "#FF4040" }
+            ]}>
+              {localVideoLikes !== null ? localVideoLikes : (video ? video.likes : 0)}
+            </Text>
+          </TouchableOpacity>
         </View>
         <Text 
           style={[
@@ -368,16 +788,36 @@ const VideoDetailScreen = () => {
       
       <View style={styles.commentHeader}>
         <Text style={styles.commentHeaderText}>
-          {DUMMY_COMMENTS.length}条评论
+          {comments.length > 0 ? `${comments.length}条评论` : '暂无评论'}
         </Text>
       </View>
       
       <FlatList
-        data={DUMMY_COMMENTS}
+        data={comments}
         renderItem={renderComment}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.commentsList}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMoreComments}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          commentsLoading && comments.length > 0 ? (
+            <View style={styles.loadingFooter}>
+              <ActivityIndicator size="small" color="#FF4040" />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          commentsLoading ? (
+            <View style={styles.emptyList}>
+              <ActivityIndicator size="large" color="#FF4040" />
+            </View>
+          ) : (
+            <View style={styles.emptyList}>
+              <Text style={styles.emptyText}>暂无评论，快来发表第一条评论吧</Text>
+            </View>
+          )
+        }
       />
       
       <View style={styles.inputContainer}>
@@ -385,9 +825,19 @@ const VideoDetailScreen = () => {
           style={styles.input}
           placeholder="添加评论..."
           placeholderTextColor="#999"
+          value={commentText}
+          onChangeText={setCommentText}
         />
-        <TouchableOpacity style={styles.sendButton}>
-          <Ionicons name="send" size={20} color="#FF4040" />
+        <TouchableOpacity 
+          style={styles.sendButton}
+          onPress={handleSubmitComment}
+          disabled={isSubmitting || !commentText.trim()}
+        >
+          <Ionicons 
+            name="send" 
+            size={20} 
+            color={isSubmitting || !commentText.trim() ? "#666" : "#FF4040"} 
+          />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -513,6 +963,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 12, // 减少间距
+    minWidth: 40, // 确保点赞按钮有足够宽度
+    height: 24, // 固定高度
+  },
+  commentLikeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20, // 固定宽度
+    height: 20, // 固定高度
   },
   actionText: {
     fontSize: 11, // 减小字体
@@ -597,6 +1056,30 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    padding: 4,
+  },
+  likeCount: {
+    color: 'white',
+    marginLeft: 4,
+    fontSize: 14,
+  },
+  loadingFooter: {
+    padding: 10,
+    alignItems: 'center',
+  },
+  emptyList: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: '#999',
+    fontSize: 14,
   },
 });
 

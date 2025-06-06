@@ -5,7 +5,8 @@ import {
   getCommentReplies,
   likeComment,
   unlikeComment,
-  deleteComment
+  deleteComment,
+  checkCommentLikeStatus
 } from '../controllers/comment.controller';
 import { protect } from '../middlewares/auth.middleware';
 
@@ -25,6 +26,9 @@ router.post('/:commentId/like', protect, likeComment);
 
 // 取消点赞评论
 router.delete('/:commentId/like', protect, unlikeComment);
+
+// 检查评论点赞状态
+router.get('/:commentId/like/status', protect, checkCommentLikeStatus);
 
 // 删除评论
 router.delete('/:commentId', protect, deleteComment);

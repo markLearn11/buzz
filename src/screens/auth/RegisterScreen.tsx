@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,52 +7,90 @@ import {
   TouchableOpacity, 
   KeyboardAvoidingView, 
   Platform, 
-  ScrollView 
+  ScrollView,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
-import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { registerSuccess } from '../../store/slices/authSlice';
+import { registerAsync, clearError } from '../../store/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '../../store';
 
 const RegisterScreen = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigation = useNavigation();
+  const { loading, error } = useAppSelector(state => state.auth);
   
-  const handleRegister = () => {
+  useEffect(() => {
+    // 组件挂载时清除错误
+    dispatch(clearError());
+    
+    return () => {
+      // 组件卸载时清除错误
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+  
+  useEffect(() => {
+    if (error) {
+      console.log('注册错误详情:', error);
+      Alert.alert('注册失败', `${error}\n请检查您的网络连接和输入信息`);
+    }
+  }, [error]);
+  
+  const validateInputs = () => {
     if (!username || !email || !password || !confirmPassword) {
-      alert('请填写所有字段');
-      return;
+      Alert.alert('输入错误', '请填写所有字段');
+      return false;
+    }
+    
+    if (username.length < 3 || username.length > 20) {
+      Alert.alert('用户名错误', '用户名长度必须在3-20个字符之间');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('邮箱错误', '请输入有效的邮箱地址');
+      return false;
+    }
+    
+    if (password.length < 6) {
+      Alert.alert('密码错误', '密码长度至少为6个字符');
+      return false;
     }
     
     if (password !== confirmPassword) {
-      alert('两次输入的密码不一致');
-      return;
+      Alert.alert('密码错误', '两次输入的密码不一致');
+      return false;
     }
     
-    setIsLoading(true);
+    return true;
+  };
+  
+  const handleRegister = async () => {
+    if (!validateInputs()) return;
     
-    // 模拟注册过程
-    setTimeout(() => {
-      // 模拟成功注册
-      const mockUser = {
-        id: 'currentUser',
-        username: username,
-        email: email,
-        avatar: 'https://randomuser.me/api/portraits/men/85.jpg',
-        bio: '',
-        followers: 0,
-        following: 0,
-      };
-      
-      dispatch(registerSuccess(mockUser));
-      setIsLoading(false);
-    }, 1500);
+    try {
+      console.log('开始注册，用户信息:', { username, email });
+      await dispatch(registerAsync({ username, email, password })).unwrap();
+      console.log('注册成功');
+      // 注册成功，Redux会自动更新状态，不需要额外处理
+    } catch (err: any) {
+      // 错误已经在useEffect中处理
+      console.log('注册出错:', err);
+    }
+  };
+  
+  const navigateToLogin = () => {
+    // 导航到登录页面前清除错误
+    dispatch(clearError());
+    navigation.navigate('Login');
   };
   
   return (
@@ -106,19 +144,21 @@ const RegisterScreen = () => {
             />
             
             <TouchableOpacity 
-              style={[styles.button, isLoading && styles.disabledButton]}
+              style={[styles.button, loading && styles.disabledButton]}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={loading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? '注册中...' : '注册'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>注册</Text>
+              )}
             </TouchableOpacity>
           </View>
           
           <View style={styles.footer}>
             <Text style={styles.footerText}>已有账号？</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={navigateToLogin}>
               <Text style={styles.loginText}>立即登录</Text>
             </TouchableOpacity>
           </View>

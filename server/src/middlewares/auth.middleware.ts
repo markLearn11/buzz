@@ -30,14 +30,15 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
       req.user = await User.findById(decoded.id).select('-password');
 
       next();
+      return;
     } catch (error) {
       console.error(error);
-      res.status(401).json({ message: '未授权，token无效' });
+      return res.status(401).json({ message: '未授权，token无效' });
     }
   }
 
   if (!token) {
-    res.status(401).json({ message: '未授权，未提供token' });
+    return res.status(401).json({ message: '未授权，未提供token' });
   }
 };
 

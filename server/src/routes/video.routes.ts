@@ -10,7 +10,8 @@ import {
   likeVideo,
   unlikeVideo,
   deleteVideo,
-  updateVideo
+  updateVideo,
+  checkVideoLikeStatus
 } from '../controllers/video.controller';
 import { protect } from '../middlewares/auth.middleware';
 import { Request } from 'express';
@@ -113,6 +114,9 @@ router.post('/:id/like', protect, likeVideo);
 
 // 取消点赞
 router.delete('/:id/like', protect, unlikeVideo);
+
+// 检查点赞状态
+router.get('/:id/like/status', protect, checkVideoLikeStatus);
 
 // 删除视频
 router.delete('/:id', protect, deleteVideo);
