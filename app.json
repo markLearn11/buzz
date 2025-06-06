@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Buzz",
+    "slug": "buzz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourusername.buzz"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.yourusername.buzz"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "description": "短视频社交应用，支持刷视频、上传视频、编辑视频和聊天",
+    "primaryColor": "#FF4040",
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "允许 $(PRODUCT_NAME) 访问您的相机"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "允许 $(PRODUCT_NAME) 访问您的照片",
+          "savePhotosPermission": "允许 $(PRODUCT_NAME) 保存照片到您的相册",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
+  }
+} 
