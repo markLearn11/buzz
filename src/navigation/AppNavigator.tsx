@@ -23,6 +23,12 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 
+// 设置子页面
+import PasswordChangeScreen from '../screens/settings/PasswordChangeScreen';
+import AppearanceScreen from '../screens/settings/AppearanceScreen';
+import NotificationsScreen from '../screens/settings/NotificationsScreen';
+import PrivacyScreen from '../screens/settings/PrivacyScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +62,12 @@ const ProfileStack = () => (
     <Stack.Screen name="UserProfile" component={ProfileScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+    
+    {/* 设置子页面 */}
+    <Stack.Screen name="PasswordChange" component={PasswordChangeScreen} />
+    <Stack.Screen name="Appearance" component={AppearanceScreen} />
+    <Stack.Screen name="NotificationSettings" component={NotificationsScreen} />
+    <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
   </Stack.Navigator>
 );
 

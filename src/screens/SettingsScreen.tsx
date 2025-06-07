@@ -48,17 +48,26 @@ const SettingsScreen = () => {
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>账户设置</Text>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
             <Ionicons name="person-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>个人资料</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('PasswordChange')}
+          >
             <Ionicons name="lock-closed-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>修改密码</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('NotificationSettings')}
+          >
             <Ionicons name="notifications-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>通知设置</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
@@ -72,14 +81,28 @@ const SettingsScreen = () => {
             <Text style={styles.menuText}>语言设置</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('PrivacySettings')}
+          >
             <Ionicons name="shield-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>隐私设置</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Appearance')}
+          >
             <Ionicons name="eye-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>外观模式</Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="cloud-download-outline" size={22} color="#ccc" />
+            <Text style={styles.menuText}>存储与缓存</Text>
+            <View style={styles.storageBadge}>
+              <Text style={styles.storageBadgeText}>82.5MB</Text>
+            </View>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
         </View>
@@ -94,6 +117,16 @@ const SettingsScreen = () => {
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="help-circle-outline" size={22} color="#ccc" />
             <Text style={styles.menuText}>帮助中心</Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="document-text-outline" size={22} color="#ccc" />
+            <Text style={styles.menuText}>用户协议</Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="shield-checkmark-outline" size={22} color="#ccc" />
+            <Text style={styles.menuText}>隐私政策</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
         </View>
@@ -153,6 +186,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     flex: 1,
+  },
+  storageBadge: {
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  storageBadgeText: {
+    color: '#ccc',
+    fontSize: 12,
   },
   logoutButton: {
     marginHorizontal: 16,
