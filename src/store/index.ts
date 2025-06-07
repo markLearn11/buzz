@@ -4,6 +4,7 @@ import videosReducer from './slices/videosSlice';
 import chatReducer from './slices/chatSlice';
 import appReducer from './slices/appSlice';
 import commentsReducer from './slices/commentsSlice';
+import themeReducer from './slices/themeSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 
@@ -17,6 +18,7 @@ export const store = configureStore({
     chat: chatReducer,
     app: appReducer,
     comments: commentsReducer,
+    theme: themeReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

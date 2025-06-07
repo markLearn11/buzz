@@ -135,7 +135,11 @@ export default {
     small: 'Small',
     medium: 'Medium',
     large: 'Large',
+    preview: 'Preview',
+    previewTitle: 'Preview Title',
+    previewBody: 'This is a preview text to demonstrate how text appears with the current theme. You can see the effect of different font sizes and colors here.',
     appearanceNote: 'After adjusting appearance settings, some interfaces may require restarting the app to fully take effect.',
+    
     // Notification settings
     loadNotificationSettingsFailed: 'Failed to load notification settings:',
     saveNotificationSettingsFailed: 'Failed to save notification settings:',
@@ -439,5 +443,11 @@ export default {
     section8_3: '8.3 Disputes between us and users should be resolved through friendly negotiation. If negotiation fails, either party may file a lawsuit with a court of competent jurisdiction.',
     
     contactInfo: 'If you have any questions, please contact us: {{email}}'
+  },
+  
+  // Discover page
+  discover: {
+    title: 'Discover Amazing Content',
+    subtitle: 'Explore creators and trending topics to find more interesting videos'
   }
 }; 

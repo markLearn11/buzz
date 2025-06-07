@@ -3,15 +3,24 @@ import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, ActivityI
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../../config/env';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAppSelector, useAppDispatch } from '../../store';
+import { 
+  setDarkMode, 
+  setFollowSystem, 
+  setTextSize,
+  saveThemeSettings
+} from '../../store/slices/themeSlice';
+import { useTheme } from '../../themes/ThemeProvider';
+import { TextSize } from '../../themes';
+import { API_BASE_URL } from '../../config/env';
 
 // 外观设置接口
 interface AppearanceSettings {
   darkMode: boolean;
   followSystem: boolean;
-  textSize: string; // 'small', 'medium', 'large'
+  textSize: TextSize;
 }
 
 // 默认设置
@@ -23,9 +32,10 @@ const defaultSettings: AppearanceSettings = {
 
 const AppearanceScreen = () => {
   const navigation = useNavigation();
-  const [isLoading, setIsLoading] = useState(true);
-  const [settings, setSettings] = useState<AppearanceSettings>(defaultSettings);
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  const { isDarkMode, followSystem, textSize, isLoading } = useAppSelector(state => state.theme);
+  const theme = useTheme();
 
   // 加载外观设置
   useEffect(() => {
@@ -45,7 +55,16 @@ const AppearanceScreen = () => {
             const data = await response.json();
             const apiSettings = data.appearance;
             if (apiSettings) {
-              setSettings(apiSettings);
+              dispatch(setDarkMode(apiSettings.darkMode));
+              dispatch(setFollowSystem(apiSettings.followSystem));
+              
+              // 确保textSize是合法的值
+              const size = apiSettings.textSize as TextSize;
+              if (size === 'small' || size === 'medium' || size === 'large') {
+                dispatch(setTextSize(size));
+              } else {
+                dispatch(setTextSize('medium'));
+              }
               
               // 同步到本地存储
               await AsyncStorage.setItem('appearanceSettings', JSON.stringify(apiSettings));
@@ -60,7 +79,17 @@ const AppearanceScreen = () => {
         // 从本地存储加载
         const savedSettings = await AsyncStorage.getItem('appearanceSettings');
         if (savedSettings) {
-          setSettings(JSON.parse(savedSettings));
+          const savedSettingsObj = JSON.parse(savedSettings);
+          dispatch(setDarkMode(savedSettingsObj.darkMode));
+          dispatch(setFollowSystem(savedSettingsObj.followSystem));
+          
+          // 确保textSize是合法的值
+          const size = savedSettingsObj.textSize as TextSize;
+          if (size === 'small' || size === 'medium' || size === 'large') {
+            dispatch(setTextSize(size));
+          } else {
+            dispatch(setTextSize('medium'));
+          }
         } else {
           // 如果没有本地设置，使用默认值
           const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
@@ -69,24 +98,37 @@ const AppearanceScreen = () => {
           
           // 从旧的存储格式迁移
           if (savedDarkMode !== null || savedFollowSystem !== null || savedTextSize !== null) {
+            // 确保textSize是合法的值
+            let size: TextSize = 'medium';
+            if (savedTextSize === 'small' || savedTextSize === 'medium' || savedTextSize === 'large') {
+              size = savedTextSize as TextSize;
+            }
+            
             const migratedSettings = {
               darkMode: savedDarkMode === 'true',
               followSystem: savedFollowSystem === 'true',
-              textSize: savedTextSize || 'medium'
+              textSize: size
             };
-            setSettings(migratedSettings);
+            
+            dispatch(setDarkMode(migratedSettings.darkMode));
+            dispatch(setFollowSystem(migratedSettings.followSystem));
+            dispatch(setTextSize(migratedSettings.textSize));
             await AsyncStorage.setItem('appearanceSettings', JSON.stringify(migratedSettings));
           }
         }
       } catch (error) {
         console.error(t('settings.loadAppearanceSettingsFailed'), error);
       } finally {
-        setIsLoading(false);
+        dispatch(saveThemeSettings({
+          isDarkMode,
+          followSystem,
+          textSize
+        }));
       }
     };
     
     loadSettings();
-  }, [t]);
+  }, [t, dispatch]);
 
   // 保存外观设置
   const saveSettings = async (newSettings: AppearanceSettings) => {
@@ -126,112 +168,117 @@ const AppearanceScreen = () => {
 
   // 切换暗黑模式
   const toggleDarkMode = () => {
-    const newSettings = { 
-      ...settings,
-      darkMode: !settings.darkMode
-    };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    // 这里应该调用Redux action或Context更新全局主题
+    dispatch(setDarkMode(!isDarkMode));
+    
+    // 保存设置
+    dispatch(saveThemeSettings({
+      isDarkMode: !isDarkMode,
+      followSystem: false,
+      textSize
+    }));
   };
 
   // 切换跟随系统设置
   const toggleFollowSystem = () => {
-    const newSettings = { 
-      ...settings,
-      followSystem: !settings.followSystem
-    };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    // 这里应该调用Redux action或Context更新全局主题
+    dispatch(setFollowSystem(!followSystem));
+    
+    // 保存设置
+    dispatch(saveThemeSettings({
+      isDarkMode: isDarkMode,
+      followSystem: !followSystem,
+      textSize
+    }));
   };
 
   // 更改文本大小
-  const handleTextSizeChange = (size: string) => {
-    const newSettings = { 
-      ...settings,
+  const handleTextSizeChange = (size: TextSize) => {
+    dispatch(setTextSize(size));
+    
+    // 保存设置
+    dispatch(saveThemeSettings({
+      isDarkMode,
+      followSystem,
       textSize: size
-    };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    // 这里应该调用相关函数更新全局文本大小
+    }));
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, !isDarkMode && styles.lightContainer]}>
+        <View style={[styles.header, !isDarkMode && styles.lightHeader]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color={isDarkMode ? "white" : "black"} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('settings.appearance')}</Text>
+          <Text style={[styles.headerTitle, !isDarkMode && styles.lightHeaderTitle]}>{t('settings.appearance')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF4040" />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+          <Text style={[styles.loadingText, !isDarkMode && styles.lightLoadingText]}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, !isDarkMode && styles.lightContainer]}>
+      <View style={[styles.header, !isDarkMode && styles.lightHeader]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={isDarkMode ? "white" : "black"} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.appearance')}</Text>
+        <Text style={[styles.headerTitle, !isDarkMode && styles.lightHeaderTitle]}>{t('settings.appearance')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.theme')}</Text>
+          <Text style={[styles.sectionTitle, !isDarkMode && styles.lightSectionTitle]}>{t('settings.theme')}</Text>
           
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, !isDarkMode && styles.lightSettingItem]}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>{t('settings.darkMode')}</Text>
-              <Text style={styles.settingDescription}>{t('settings.darkModeDescription')}</Text>
+              <Text style={[styles.settingText, !isDarkMode && styles.lightSettingText]}>{t('settings.darkMode')}</Text>
+              <Text style={[styles.settingDescription, !isDarkMode && styles.lightSettingDescription]}>{t('settings.darkModeDescription')}</Text>
             </View>
             <Switch
-              trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
+              trackColor={{ false: isDarkMode ? '#3e3e3e' : '#d0d0d0', true: '#FF4040' }}
               thumbColor="#f4f3f4"
-              ios_backgroundColor="#3e3e3e"
+              ios_backgroundColor={isDarkMode ? '#3e3e3e' : '#d0d0d0'}
               onValueChange={toggleDarkMode}
-              value={settings.darkMode}
+              value={isDarkMode}
             />
           </View>
 
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, !isDarkMode && styles.lightSettingItem]}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>{t('settings.followSystem')}</Text>
-              <Text style={styles.settingDescription}>{t('settings.followSystemDescription')}</Text>
+              <Text style={[styles.settingText, !isDarkMode && styles.lightSettingText]}>{t('settings.followSystem')}</Text>
+              <Text style={[styles.settingDescription, !isDarkMode && styles.lightSettingDescription]}>{t('settings.followSystemDescription')}</Text>
             </View>
             <Switch
-              trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
+              trackColor={{ false: isDarkMode ? '#3e3e3e' : '#d0d0d0', true: '#FF4040' }}
               thumbColor="#f4f3f4"
-              ios_backgroundColor="#3e3e3e"
+              ios_backgroundColor={isDarkMode ? '#3e3e3e' : '#d0d0d0'}
               onValueChange={toggleFollowSystem}
-              value={settings.followSystem}
+              value={followSystem}
             />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.textSize')}</Text>
+          <Text style={[styles.sectionTitle, !isDarkMode && styles.lightSectionTitle]}>{t('settings.textSize')}</Text>
           
           <TouchableOpacity 
             style={[
               styles.textSizeOption, 
-              settings.textSize === 'small' && styles.selectedTextSize
+              !isDarkMode && styles.lightTextSizeOption,
+              textSize === 'small' && styles.selectedTextSize,
+              textSize === 'small' && !isDarkMode && styles.lightSelectedTextSize
             ]}
             onPress={() => handleTextSizeChange('small')}
           >
-            <Text style={[styles.textSizeLabel, { fontSize: 14 }]}>
+            <Text style={[styles.textSizeLabel, !isDarkMode && styles.lightTextSizeLabel, { fontSize: 14 }]}>
               {t('settings.small')}
             </Text>
-            {settings.textSize === 'small' && (
+            {textSize === 'small' && (
               <Ionicons name="checkmark" size={22} color="#FF4040" />
             )}
           </TouchableOpacity>
@@ -239,14 +286,16 @@ const AppearanceScreen = () => {
           <TouchableOpacity 
             style={[
               styles.textSizeOption, 
-              settings.textSize === 'medium' && styles.selectedTextSize
+              !isDarkMode && styles.lightTextSizeOption,
+              textSize === 'medium' && styles.selectedTextSize,
+              textSize === 'medium' && !isDarkMode && styles.lightSelectedTextSize
             ]}
             onPress={() => handleTextSizeChange('medium')}
           >
-            <Text style={[styles.textSizeLabel, { fontSize: 16 }]}>
+            <Text style={[styles.textSizeLabel, !isDarkMode && styles.lightTextSizeLabel, { fontSize: 16 }]}>
               {t('settings.medium')}
             </Text>
-            {settings.textSize === 'medium' && (
+            {textSize === 'medium' && (
               <Ionicons name="checkmark" size={22} color="#FF4040" />
             )}
           </TouchableOpacity>
@@ -254,20 +303,36 @@ const AppearanceScreen = () => {
           <TouchableOpacity 
             style={[
               styles.textSizeOption, 
-              settings.textSize === 'large' && styles.selectedTextSize
+              !isDarkMode && styles.lightTextSizeOption,
+              textSize === 'large' && styles.selectedTextSize,
+              textSize === 'large' && !isDarkMode && styles.lightSelectedTextSize
             ]}
             onPress={() => handleTextSizeChange('large')}
           >
-            <Text style={[styles.textSizeLabel, { fontSize: 18 }]}>
+            <Text style={[styles.textSizeLabel, !isDarkMode && styles.lightTextSizeLabel, { fontSize: 18 }]}>
               {t('settings.large')}
             </Text>
-            {settings.textSize === 'large' && (
+            {textSize === 'large' && (
               <Ionicons name="checkmark" size={22} color="#FF4040" />
             )}
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.note}>
+        {/* 添加主题预览 */}
+        <View style={styles.previewSection}>
+          <Text style={[styles.sectionTitle, !isDarkMode && styles.lightSectionTitle]}>{t('settings.preview')}</Text>
+          
+          <View style={[styles.previewCard, !isDarkMode && styles.lightModePreview]}>
+            <Text style={[styles.previewHeader, !isDarkMode && styles.lightPreviewHeader]}>
+              {t('settings.previewTitle')}
+            </Text>
+            <Text style={[styles.previewBody, !isDarkMode && styles.lightPreviewBody]}>
+              {t('settings.previewBody')}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.note, !isDarkMode && styles.lightNote]}>
           {t('settings.appearanceNote')}
         </Text>
       </ScrollView>
@@ -280,6 +345,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  lightContainer: {
+    backgroundColor: '#fff',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -289,10 +357,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  lightHeader: {
+    borderBottomColor: '#e0e0e0',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: 'white',
+  },
+  lightHeaderTitle: {
+    color: 'black',
   },
   content: {
     flex: 1,
@@ -307,6 +381,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
+  lightSectionTitle: {
+    color: '#777',
+  },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -315,6 +392,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  lightSettingItem: {
+    borderBottomColor: '#e0e0e0',
+  },
   settingTextContainer: {
     flex: 1,
   },
@@ -322,10 +402,16 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
   },
+  lightSettingText: {
+    color: 'black',
+  },
   settingDescription: {
     color: '#999',
     fontSize: 14,
     marginTop: 4,
+  },
+  lightSettingDescription: {
+    color: '#666',
   },
   textSizeOption: {
     flexDirection: 'row',
@@ -335,11 +421,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  lightTextSizeOption: {
+    borderBottomColor: '#e0e0e0',
+  },
   selectedTextSize: {
     borderBottomColor: '#444',
   },
+  lightSelectedTextSize: {
+    borderBottomColor: '#ddd',
+  },
   textSizeLabel: {
     color: 'white',
+  },
+  lightTextSizeLabel: {
+    color: 'black',
   },
   previewSection: {
     marginBottom: 30,
@@ -366,12 +461,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  lightPreviewHeader: {
+    color: '#333',
+  },
   previewBody: {
     color: '#ddd',
     fontSize: 14,
     lineHeight: 20,
   },
-  lightModeText: {
+  lightPreviewBody: {
     color: '#333',
   },
   loadingContainer: {
@@ -383,11 +481,18 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
   },
+  lightLoadingText: {
+    color: '#333',
+  },
   note: {
     color: '#999',
     fontSize: 14,
     marginTop: 16,
     paddingHorizontal: 16,
+    marginBottom: 30,
+  },
+  lightNote: {
+    color: '#666',
   },
 });
 

@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { store, useAppDispatch, useAppSelector } from './src/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getCurrentUserAsync, loginSuccess } from './src/store/slices/authSlice';
+import { ThemeProvider } from './src/themes/ThemeProvider';
 
 // 忽略一些常见的警告
 LogBox.ignoreLogs([
@@ -30,6 +31,7 @@ const AppContent = () => {
   const { error } = useAppSelector(state => state.auth);
   const [networkCheckFailed, setNetworkCheckFailed] = useState(false);
   const { t } = useTranslation();
+  const { isDarkMode } = useAppSelector(state => state.theme);
 
   // 检查认证状态
   useEffect(() => {
@@ -152,10 +154,10 @@ const AppContent = () => {
   // 如果正在检查认证状态，显示加载指示器
   if (isCheckingAuth) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.logoText}>Buzz</Text>
+      <View style={[styles.loadingContainer, isDarkMode ? {} : styles.lightLoadingContainer]}>
+        <Text style={[styles.logoText, isDarkMode ? {} : styles.lightLogoText]}>Buzz</Text>
         <ActivityIndicator size="large" color="#FF4040" style={styles.loader} />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        <Text style={[styles.loadingText, isDarkMode ? {} : styles.lightLoadingText]}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -163,7 +165,7 @@ const AppContent = () => {
   return (
     <NavigationContainer>
       <AppNavigator />
-      <StatusBar style="auto" />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       {!isConnected && (
         <View style={styles.networkWarning}>
           <Text style={styles.networkWarningText}>
@@ -182,11 +184,13 @@ export default function App() {
   return (
     <Provider store={store}>
       <I18nextProvider i18n={i18n}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaProvider>
-            <AppContent />
-          </SafeAreaProvider>
-        </GestureHandlerRootView>
+        <ThemeProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <AppContent />
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
+        </ThemeProvider>
       </I18nextProvider>
     </Provider>
   );
@@ -212,11 +216,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#000',
   },
+  lightLoadingContainer: {
+    backgroundColor: '#fff',
+  },
   logoText: {
     fontSize: 48,
     fontWeight: 'bold',
     color: '#FF4040',
     marginBottom: 20,
+  },
+  lightLogoText: {
+    color: '#FF4040', // 保持红色一致
   },
   loader: {
     marginVertical: 20,
@@ -224,5 +234,8 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#ccc',
+  },
+  lightLoadingText: {
+    color: '#666',
   }
 }); 

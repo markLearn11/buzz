@@ -6,11 +6,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch } from '../store';
 import { logoutAsync } from '../store/slices/authSlice';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../themes/ThemeProvider';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
+  const { isDark, colors } = useTheme();
 
   const handleLogout = () => {
     Alert.alert(
@@ -38,116 +40,146 @@ const SettingsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? colors.border : colors.divider }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.textSecondary }]}>
+          {t('settings.title')}
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#666' : '#888' }]}>
+            {t('settings.account')}
+          </Text>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('EditProfile')}
           >
-            <Ionicons name="person-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('profile.editProfile')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="person-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('profile.editProfile')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('PasswordChange')}
           >
-            <Ionicons name="lock-closed-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('auth.changePassword')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="lock-closed-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('auth.changePassword')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('NotificationSettings')}
           >
-            <Ionicons name="notifications-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.notifications')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="notifications-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.notifications')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.title')}</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#666' : '#888' }]}>
+            {t('settings.title')}
+          </Text>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('LanguageSettings')}
           >
-            <Ionicons name="language-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.language')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="language-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.language')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('PrivacySettings')}
           >
-            <Ionicons name="shield-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.privacy')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="shield-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.privacy')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('Appearance')}
           >
-            <Ionicons name="eye-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.appearance')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="eye-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.appearance')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('StorageSettings')}
           >
-            <Ionicons name="cloud-download-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.storage')}</Text>
-            <View style={styles.storageBadge}>
-              <Text style={styles.storageBadgeText}>82.5MB</Text>
+            <Ionicons name="cloud-download-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.storage')}
+            </Text>
+            <View style={[styles.storageBadge, { backgroundColor: isDark ? '#333' : '#eee' }]}>
+              <Text style={[styles.storageBadgeText, { color: isDark ? '#ccc' : '#666' }]}>82.5MB</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#666' : '#888' }]}>
+            {t('settings.about')}
+          </Text>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('AboutUs')}
           >
-            <Ionicons name="information-circle-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.about')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="information-circle-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.about')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('HelpCenter')}
           >
-            <Ionicons name="help-circle-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.help')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="help-circle-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.help')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('TermsScreen')}
           >
-            <Ionicons name="document-text-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.terms')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="document-text-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.terms')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.menuItem}
+            style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
             onPress={() => navigation.navigate('PrivacyPolicy')}
           >
-            <Ionicons name="shield-checkmark-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>{t('settings.privacyPolicy')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="shield-checkmark-outline" size={22} color={isDark ? "#ccc" : "#666"} />
+            <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>
+              {t('settings.privacyPolicy')}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? "#666" : "#999"} />
           </TouchableOpacity>
         </View>
 
@@ -155,7 +187,9 @@ const SettingsScreen = () => {
           <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>{t('settings.version', { version: '1.0.0' })}</Text>
+        <Text style={[styles.version, { color: isDark ? '#666' : '#999' }]}>
+          {t('settings.version', { version: '1.0.0' })}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -164,7 +198,6 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -173,12 +206,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     flex: 1,
@@ -188,7 +219,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    color: '#666',
     marginLeft: 16,
     marginTop: 16,
     marginBottom: 8,
@@ -199,23 +229,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   menuText: {
-    color: 'white',
     fontSize: 16,
     marginLeft: 12,
     flex: 1,
   },
   storageBadge: {
-    backgroundColor: '#333',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginRight: 8,
   },
   storageBadgeText: {
-    color: '#ccc',
     fontSize: 12,
   },
   logoutButton: {
@@ -233,7 +259,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   version: {
-    color: '#666',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 30,

@@ -26,6 +26,8 @@ import {
   sendMessageFailure,
   markAsRead,
 } from '../store/slices/chatSlice';
+import { useTheme } from '../themes/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 // 模拟消息数据
 const DUMMY_MESSAGES = {
@@ -190,6 +192,8 @@ const ChatScreen = () => {
   const dispatch = useAppDispatch();
   const { messages, isLoading } = useSelector((state: RootState) => state.chat);
   const flatListRef = useRef<FlatList>(null);
+  const { isDark, colors } = useTheme();
+  const { t } = useTranslation();
   
   const conversationMessages = messages[conversationId] || [];
   
@@ -211,9 +215,9 @@ const ChatScreen = () => {
         dispatch(markAsRead({ conversationId, messageIds: unreadMessageIds }));
       }
     } catch (error) {
-      dispatch(fetchMessagesFailure((error as Error).message || '获取消息失败'));
+      dispatch(fetchMessagesFailure((error as Error).message || t('chat.fetchFailed')));
     }
-  }, [dispatch, conversationId]);
+  }, [dispatch, conversationId, t]);
   
   useEffect(() => {
     // 滚动到底部
@@ -248,62 +252,83 @@ const ChatScreen = () => {
       read: false,
     };
     
-    try {
-      // 在实际应用中，这里应该发送消息到API
-      setTimeout(() => {
+    // 模拟发送请求
+    setTimeout(() => {
+      try {
         dispatch(sendMessageSuccess({
           conversationId,
-          message: newMessage,
+          message: newMessage
         }));
-        
         setMessageText('');
         setSending(false);
         
         // 滚动到底部
-        if (flatListRef.current) {
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        }
-      }, 500);
-    } catch (error) {
-      dispatch(sendMessageFailure((error as Error).message || '发送消息失败'));
-      setSending(false);
-    }
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } catch (error) {
+        dispatch(sendMessageFailure((error as Error).message || t('chat.sendFailed')));
+        setSending(false);
+      }
+    }, 500);
   };
   
   const renderMessageItem = ({ item, index }) => {
     const isCurrentUser = item.senderId === 'currentUser';
     const user = DUMMY_USERS[item.senderId];
-    const showDate = index === 0 || (
-      new Date(item.timestamp).toDateString() !== 
-      new Date(conversationMessages[index - 1].timestamp).toDateString()
-    );
+    
+    // 日期分隔符逻辑
+    let showDateSeparator = false;
+    if (index === 0) {
+      showDateSeparator = true;
+    } else {
+      const prevDate = new Date(conversationMessages[index - 1].timestamp).setHours(0, 0, 0, 0);
+      const currDate = new Date(item.timestamp).setHours(0, 0, 0, 0);
+      showDateSeparator = prevDate !== currDate;
+    }
     
     return (
       <>
-        {showDate && (
-          <View style={styles.dateContainer}>
-            <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
+        {showDateSeparator && (
+          <View style={styles.dateSeparator}>
+            <Text style={[styles.dateSeparatorText, { color: isDark ? '#999' : '#888' }]}>
+              {formatDate(item.timestamp)}
+            </Text>
           </View>
         )}
-        <View style={[
-          styles.messageContainer,
-          isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
-        ]}>
+        <View 
+          style={[
+            styles.messageContainer, 
+            isCurrentUser ? styles.sentMessageContainer : styles.receivedMessageContainer
+          ]}
+        >
           {!isCurrentUser && (
-            <Image 
-              source={{ uri: user.avatar }}
-              style={styles.messageAvatar}
-            />
+            <Image source={{ uri: user.avatar }} style={styles.avatar} />
           )}
-          
-          <View style={[
-            styles.messageBubble,
-            isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
-          ]}>
-            <Text style={styles.messageText}>{item.text}</Text>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+          <View 
+            style={[
+              styles.messageBubble, 
+              isCurrentUser 
+                ? [styles.sentMessageBubble, { backgroundColor: colors.accent }] 
+                : [styles.receivedMessageBubble, { backgroundColor: isDark ? '#333' : '#eee' }]
+            ]}
+          >
+            <Text 
+              style={[
+                styles.messageText,
+                { color: isCurrentUser ? 'white' : (isDark ? 'white' : 'black') }
+              ]}
+            >
+              {item.text}
+            </Text>
+            <Text 
+              style={[
+                styles.messageTime, 
+                { color: isCurrentUser ? 'rgba(255,255,255,0.7)' : (isDark ? '#999' : '#777') }
+              ]}
+            >
+              {formatTime(item.timestamp)}
+            </Text>
           </View>
         </View>
       </>
@@ -311,40 +336,77 @@ const ChatScreen = () => {
   };
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView 
+      style={[
+        styles.container, 
+        { backgroundColor: isDark ? colors.primary : colors.white }
+      ]}
+      edges={['bottom']}
+    >
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={{ color: isDark ? 'white' : 'black', marginTop: 10 }}>
+            {t('common.loading')}
+          </Text>
+        </View>
+      ) : conversationMessages.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubble-ellipses-outline" size={60} color={isDark ? '#666' : '#ccc'} />
+          <Text style={{ color: isDark ? '#999' : '#666', marginTop: 10, textAlign: 'center' }}>
+            {t('chat.noMessages')}
+          </Text>
+          <Text style={{ color: isDark ? '#777' : '#888', marginTop: 5, textAlign: 'center' }}>
+            {t('chat.startConversation')}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={conversationMessages}
+          renderItem={renderMessageItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.messagesContent}
+        />
+      )}
+      
       <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {isLoading && conversationMessages.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF4040" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={conversationMessages}
-            renderItem={renderMessageItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.messagesContainer}
-          />
-        )}
-        
-        <View style={styles.inputContainer}>
+        <View 
+          style={[
+            styles.inputContainer,
+            { 
+              backgroundColor: isDark ? colors.surface : colors.white,
+              borderTopColor: isDark ? colors.border : colors.divider
+            }
+          ]}
+        >
           <TextInput
-            style={styles.input}
-            placeholder="发送消息..."
-            placeholderTextColor="#999"
+            style={[
+              styles.input,
+              { 
+                backgroundColor: isDark ? colors.surfaceVariant : colors.secondary,
+                color: isDark ? colors.text : colors.textSecondary
+              }
+            ]}
+            placeholder={t('chat.typeMessage')}
+            placeholderTextColor={isDark ? '#777' : '#999'}
             value={messageText}
             onChangeText={setMessageText}
             multiline
-            maxLength={500}
           />
           <TouchableOpacity
-            style={[styles.sendButton, messageText.trim() === '' && styles.disabledSendButton]}
+            style={[
+              styles.sendButton,
+              { 
+                backgroundColor: messageText.trim() ? colors.accent : (isDark ? '#333' : '#ddd'),
+                opacity: messageText.trim() ? 1 : 0.7
+              }
+            ]}
             onPress={handleSendMessage}
-            disabled={messageText.trim() === '' || sending}
+            disabled={!messageText.trim() || sending}
           >
             {sending ? (
               <ActivityIndicator size="small" color="white" />
@@ -361,100 +423,93 @@ const ChatScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  messagesContainer: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  dateContainer: {
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 16,
+    paddingHorizontal: 40,
   },
-  dateText: {
-    color: '#999',
-    fontSize: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 10,
+  messagesContent: {
+    padding: 16,
+    paddingBottom: 8,
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    maxWidth: '80%',
+    marginBottom: 12,
   },
-  currentUserMessage: {
-    alignSelf: 'flex-end',
+  sentMessageContainer: {
+    justifyContent: 'flex-end',
   },
-  otherUserMessage: {
-    alignSelf: 'flex-start',
+  receivedMessageContainer: {
+    justifyContent: 'flex-start',
   },
-  messageAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     marginRight: 8,
-    alignSelf: 'flex-end',
   },
   messageBubble: {
-    padding: 12,
-    borderRadius: 18,
+    maxWidth: '75%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
-  currentUserBubble: {
-    backgroundColor: '#FF4040',
+  sentMessageBubble: {
     borderBottomRightRadius: 4,
   },
-  otherUserBubble: {
-    backgroundColor: '#333',
+  receivedMessageBubble: {
     borderBottomLeftRadius: 4,
   },
   messageText: {
-    color: 'white',
-    fontSize: 16,
+    fontSize: 15,
+    marginRight: 40,
   },
   messageTime: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 10,
-    alignSelf: 'flex-end',
-    marginTop: 4,
+    fontSize: 11,
+    position: 'absolute',
+    right: 10,
+    bottom: 8,
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
   },
   input: {
     flex: 1,
-    backgroundColor: '#222',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 10,
+    marginRight: 8,
     fontSize: 16,
-    color: 'white',
-    maxHeight: 100,
+    maxHeight: 120,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FF4040',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
-  },
-  disabledSendButton: {
-    backgroundColor: '#666',
   },
 });
 

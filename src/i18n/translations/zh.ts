@@ -134,6 +134,9 @@ export default {
     small: '小',
     medium: '中',
     large: '大',
+    preview: '预览效果',
+    previewTitle: '预览标题',
+    previewBody: '这是一段预览文本，用于展示当前主题下的文字显示效果。您可以在这里看到不同字体大小和颜色的效果。',
     appearanceNote: '调整外观设置后，某些界面可能需要重新启动应用才能完全生效。',
     // 通知设置
     loadNotificationSettingsFailed: '加载通知设置失败:',
@@ -439,5 +442,11 @@ export default {
     section8_3: '8.3 我们与用户之间的争议应通过友好协商解决。协商不成的，任何一方均可向有管辖权的人民法院提起诉讼。',
     
     contactInfo: '如有任何问题，请联系我们：{{email}}'
+  },
+  
+  // 发现页
+  discover: {
+    title: '发现精彩内容',
+    subtitle: '探索创作者和热门话题，发现更多有趣的视频'
   }
 }; 
