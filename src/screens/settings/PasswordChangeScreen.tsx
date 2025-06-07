@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityInd
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 const PasswordChangeScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,17 +19,17 @@ const PasswordChangeScreen = () => {
   const handleSavePassword = async () => {
     // 验证输入
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('错误', '请填写所有密码字段');
+      Alert.alert(t('common.error'), t('auth.fillAllFields'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('错误', '新密码和确认密码不匹配');
+      Alert.alert(t('common.error'), t('auth.passwordMismatch'));
       return;
     }
 
     if (newPassword.length < 8) {
-      Alert.alert('错误', '新密码长度需至少8个字符');
+      Alert.alert(t('common.error'), t('auth.passwordTooShort'));
       return;
     }
 
@@ -36,11 +38,11 @@ const PasswordChangeScreen = () => {
     try {
       // 这里应该调用实际的API
       await new Promise(resolve => setTimeout(resolve, 1500));
-      Alert.alert('成功', '密码已成功修改', [
-        { text: '确定', onPress: () => navigation.goBack() }
+      Alert.alert(t('common.success'), t('auth.passwordChangeSuccess'), [
+        { text: t('common.confirm'), onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert('错误', '密码修改失败，请重试');
+      Alert.alert(t('common.error'), t('auth.passwordChangeFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -52,17 +54,17 @@ const PasswordChangeScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>修改密码</Text>
+        <Text style={styles.headerTitle}>{t('auth.changePassword')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>当前密码</Text>
+          <Text style={styles.label}>{t('auth.currentPassword')}</Text>
           <View style={styles.passwordInputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="输入当前密码"
+              placeholder={t('auth.enterCurrentPassword')}
               placeholderTextColor="#666"
               secureTextEntry={!showCurrentPassword}
               value={currentPassword}
@@ -75,11 +77,11 @@ const PasswordChangeScreen = () => {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>新密码</Text>
+          <Text style={styles.label}>{t('auth.newPassword')}</Text>
           <View style={styles.passwordInputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="输入新密码"
+              placeholder={t('auth.enterNewPassword')}
               placeholderTextColor="#666"
               secureTextEntry={!showNewPassword}
               value={newPassword}
@@ -92,11 +94,11 @@ const PasswordChangeScreen = () => {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>确认新密码</Text>
+          <Text style={styles.label}>{t('auth.confirmNewPassword')}</Text>
           <View style={styles.passwordInputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="再次输入新密码"
+              placeholder={t('auth.reenterNewPassword')}
               placeholderTextColor="#666"
               secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
@@ -116,12 +118,12 @@ const PasswordChangeScreen = () => {
           {isLoading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.saveButtonText}>保存新密码</Text>
+            <Text style={styles.saveButtonText}>{t('auth.saveNewPassword')}</Text>
           )}
         </TouchableOpacity>
 
         <Text style={styles.tip}>
-          提示: 请创建一个强密码，包含字母、数字和特殊字符
+          {t('auth.passwordTip')}
         </Text>
       </View>
     </SafeAreaView>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../../config/env';
+import { useTranslation } from 'react-i18next';
 
 interface PrivacySettings {
   privateAccount: boolean;
@@ -27,32 +29,77 @@ const PrivacyScreen = () => {
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<PrivacySettings>(defaultSettings);
+  const { t } = useTranslation();
 
   // 加载隐私设置
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        // 先尝试从API获取
+        try {
+          const response = await fetch(`${API_BASE_URL}/settings`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const apiSettings = data.privacy;
+            setSettings(apiSettings);
+            
+            // 同步到本地存储
+            await AsyncStorage.setItem('privacySettings', JSON.stringify(apiSettings));
+            return;
+          }
+        } catch (apiError) {
+          console.error(t('settings.loadPrivacySettingsFailed'), apiError);
+          // 失败后继续尝试从本地存储加载
+        }
+
+        // 从本地存储加载
         const savedSettings = await AsyncStorage.getItem('privacySettings');
         if (savedSettings) {
           setSettings(JSON.parse(savedSettings));
         }
       } catch (error) {
-        console.error('加载隐私设置失败:', error);
+        console.error(t('settings.loadPrivacySettingsFailed'), error);
       } finally {
         setIsLoading(false);
       }
     };
     
     loadSettings();
-  }, []);
+  }, [t]);
 
   // 保存隐私设置
   const saveSettings = async (newSettings: PrivacySettings) => {
     try {
+      // 先保存到本地
       await AsyncStorage.setItem('privacySettings', JSON.stringify(newSettings));
+      
+      // 再同步到服务器
+      try {
+        const response = await fetch(`${API_BASE_URL}/settings/privacy`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+          },
+          body: JSON.stringify(newSettings)
+        });
+
+        if (!response.ok) {
+          console.error(t('settings.syncPrivacySettingsFailed'), await response.text());
+        }
+      } catch (apiError) {
+        console.error(t('settings.apiRequestFailed'), apiError);
+      }
     } catch (error) {
-      console.error('保存隐私设置失败:', error);
-      Alert.alert('错误', '保存设置失败，请重试');
+      console.error(t('settings.savePrivacySettingsFailed'), error);
+      Alert.alert(t('common.error'), t('settings.saveFailed'));
     }
   };
 
@@ -75,6 +122,20 @@ const PrivacyScreen = () => {
     saveSettings(newSettings);
   };
 
+  // 获取选项显示文本
+  const getOptionDisplayText = (option: string) => {
+    switch (option) {
+      case 'everyone':
+        return t('settings.everyone');
+      case 'followers':
+        return t('settings.followers');
+      case 'none':
+        return t('settings.noOne');
+      default:
+        return option;
+    }
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -82,11 +143,11 @@ const PrivacyScreen = () => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>隐私设置</Text>
+          <Text style={styles.headerTitle}>{t('settings.privacy')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>加载中...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -98,19 +159,19 @@ const PrivacyScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>隐私设置</Text>
+        <Text style={styles.headerTitle}>{t('settings.privacy')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>账户隐私</Text>
+          <Text style={styles.sectionTitle}>{t('settings.accountPrivacy')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>私密账户</Text>
+              <Text style={styles.settingText}>{t('settings.privateAccount')}</Text>
               <Text style={styles.settingDescription}>
-                只有你批准的关注者才能看到你的内容
+                {t('settings.privateAccountDesc')}
               </Text>
             </View>
             <Switch
@@ -124,9 +185,9 @@ const PrivacyScreen = () => {
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>显示活动状态</Text>
+              <Text style={styles.settingText}>{t('settings.showActivityStatus')}</Text>
               <Text style={styles.settingDescription}>
-                允许其他用户看到你最后活动的时间
+                {t('settings.showActivityStatusDesc')}
               </Text>
             </View>
             <Switch
@@ -140,17 +201,16 @@ const PrivacyScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>互动</Text>
+          <Text style={styles.sectionTitle}>{t('settings.interactions')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>私信权限</Text>
-              <Text style={styles.settingDescription}>谁可以给你发送私信</Text>
+              <Text style={styles.settingText}>{t('settings.directMessagePermissions')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.whoCanMessageYou')}</Text>
             </View>
             <TouchableOpacity onPress={() => {}}>
               <Text style={styles.selectValue}>
-                {settings.allowDirectMessages === 'everyone' ? '所有人' : 
-                 settings.allowDirectMessages === 'followers' ? '关注者' : '无人'}
+                {getOptionDisplayText(settings.allowDirectMessages)}
               </Text>
             </TouchableOpacity>
           </View>
@@ -160,7 +220,7 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowDirectMessages === 'everyone' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowDirectMessages', 'everyone')}
             >
-              <Text style={[styles.optionText, settings.allowDirectMessages === 'everyone' && styles.selectedOptionText]}>所有人</Text>
+              <Text style={[styles.optionText, settings.allowDirectMessages === 'everyone' && styles.selectedOptionText]}>{t('settings.everyone')}</Text>
               {settings.allowDirectMessages === 'everyone' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
             
@@ -168,7 +228,7 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowDirectMessages === 'followers' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowDirectMessages', 'followers')}
             >
-              <Text style={[styles.optionText, settings.allowDirectMessages === 'followers' && styles.selectedOptionText]}>关注者</Text>
+              <Text style={[styles.optionText, settings.allowDirectMessages === 'followers' && styles.selectedOptionText]}>{t('settings.followers')}</Text>
               {settings.allowDirectMessages === 'followers' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
             
@@ -176,20 +236,19 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowDirectMessages === 'none' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowDirectMessages', 'none')}
             >
-              <Text style={[styles.optionText, settings.allowDirectMessages === 'none' && styles.selectedOptionText]}>无人</Text>
+              <Text style={[styles.optionText, settings.allowDirectMessages === 'none' && styles.selectedOptionText]}>{t('settings.noOne')}</Text>
               {settings.allowDirectMessages === 'none' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
           </View>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>评论权限</Text>
-              <Text style={styles.settingDescription}>谁可以在你的视频下评论</Text>
+              <Text style={styles.settingText}>{t('settings.commentPermissions')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.whoCanCommentVideos')}</Text>
             </View>
             <TouchableOpacity onPress={() => {}}>
               <Text style={styles.selectValue}>
-                {settings.allowComments === 'everyone' ? '所有人' : 
-                 settings.allowComments === 'followers' ? '关注者' : '无人'}
+                {getOptionDisplayText(settings.allowComments)}
               </Text>
             </TouchableOpacity>
           </View>
@@ -199,7 +258,7 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowComments === 'everyone' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowComments', 'everyone')}
             >
-              <Text style={[styles.optionText, settings.allowComments === 'everyone' && styles.selectedOptionText]}>所有人</Text>
+              <Text style={[styles.optionText, settings.allowComments === 'everyone' && styles.selectedOptionText]}>{t('settings.everyone')}</Text>
               {settings.allowComments === 'everyone' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
             
@@ -207,7 +266,7 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowComments === 'followers' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowComments', 'followers')}
             >
-              <Text style={[styles.optionText, settings.allowComments === 'followers' && styles.selectedOptionText]}>关注者</Text>
+              <Text style={[styles.optionText, settings.allowComments === 'followers' && styles.selectedOptionText]}>{t('settings.followers')}</Text>
               {settings.allowComments === 'followers' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
             
@@ -215,16 +274,20 @@ const PrivacyScreen = () => {
               style={[styles.optionItem, settings.allowComments === 'none' && styles.selectedOption]} 
               onPress={() => changeSelectSetting('allowComments', 'none')}
             >
-              <Text style={[styles.optionText, settings.allowComments === 'none' && styles.selectedOptionText]}>无人</Text>
+              <Text style={[styles.optionText, settings.allowComments === 'none' && styles.selectedOptionText]}>{t('settings.noOne')}</Text>
               {settings.allowComments === 'none' && <Ionicons name="checkmark" size={20} color="#FF4040" />}
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.contentPrivacy')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>显示喜欢的视频</Text>
+              <Text style={styles.settingText}>{t('settings.showLikedVideos')}</Text>
               <Text style={styles.settingDescription}>
-                允许他人在你的个人资料中查看你喜欢的视频
+                {t('settings.showLikedVideosDesc')}
               </Text>
             </View>
             <Switch
@@ -238,13 +301,13 @@ const PrivacyScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>数据</Text>
+          <Text style={styles.sectionTitle}>{t('settings.dataAndPersonalization')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>个性化广告</Text>
+              <Text style={styles.settingText}>{t('settings.personalizedContent')}</Text>
               <Text style={styles.settingDescription}>
-                基于你的行为和偏好显示更相关的广告
+                {t('settings.personalizedContentDesc')}
               </Text>
             </View>
             <Switch
@@ -255,23 +318,25 @@ const PrivacyScreen = () => {
               value={settings.dataPersonalization}
             />
           </View>
+          
+          <TouchableOpacity 
+            style={styles.dataManagementButton}
+            onPress={() => navigation.navigate('DataManagement')}
+          >
+            <Text style={styles.dataManagementText}>{t('settings.manageYourData')}</Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>下载我的数据</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>清除搜索记录</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>管理屏蔽用户</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.tip}>
-          了解更多关于我们如何处理你的数据，请查看我们的隐私政策。
-        </Text>
+        <View style={styles.policyLinks}>
+          <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
+            <Text style={styles.policyLink}>{t('settings.privacyPolicy')}</Text>
+          </TouchableOpacity>
+          <View style={styles.policyDivider} />
+          <TouchableOpacity onPress={() => navigation.navigate('TermsScreen')}>
+            <Text style={styles.policyLink}>{t('settings.terms')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -304,77 +369,96 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
+    color: '#999',
     paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
     paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#111',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#222',
   },
   settingTextContainer: {
     flex: 1,
+    marginRight: 12,
   },
   settingText: {
     color: 'white',
     fontSize: 16,
+    marginBottom: 4,
   },
   settingDescription: {
     color: '#999',
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 13,
   },
   selectValue: {
-    color: '#FF4040',
-    fontSize: 16,
+    color: '#666',
+    fontSize: 14,
   },
   optionsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    backgroundColor: '#111',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
   },
   optionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    marginHorizontal: 10,
+    marginTop: 10,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
   },
   selectedOption: {
-    backgroundColor: '#111',
+    backgroundColor: '#252525',
+    borderColor: '#FF4040',
+    borderWidth: 1,
   },
   optionText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
   },
   selectedOptionText: {
     color: '#FF4040',
   },
-  actionButton: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingVertical: 14,
+  dataManagementButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#222',
+    paddingVertical: 12,
+    backgroundColor: '#111',
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
   },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    textAlign: 'center',
+  dataManagementText: {
+    color: '#40A0FF',
+    fontSize: 15,
   },
-  tip: {
-    color: '#888',
-    fontSize: 14,
-    margin: 16,
-    textAlign: 'center',
+  policyLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
     marginBottom: 30,
+  },
+  policyLink: {
+    color: '#666',
+    fontSize: 14,
+    paddingHorizontal: 10,
+  },
+  policyDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#444',
   },
   loadingContainer: {
     flex: 1,
@@ -382,9 +466,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFF',
+    color: '#999',
     fontSize: 16,
-  }
+  },
 });
 
 export default PrivacyScreen; 

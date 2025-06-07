@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../../config/env';
+import { useTranslation } from 'react-i18next';
 
 interface NotificationSettings {
   likes: boolean;
@@ -30,11 +32,41 @@ const NotificationsScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
   const [masterSwitch, setMasterSwitch] = useState(true);
+  const { t } = useTranslation();
 
   // 加载通知设置
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        // 先尝试从API获取
+        try {
+          const response = await fetch(`${API_BASE_URL}/settings`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const apiSettings = data.notifications;
+            setSettings(apiSettings);
+            
+            // 检查是否所有设置都是关闭的
+            const allOff = Object.values(apiSettings).every(value => value === false);
+            setMasterSwitch(!allOff);
+            
+            // 同步到本地存储
+            await AsyncStorage.setItem('notificationSettings', JSON.stringify(apiSettings));
+            return;
+          }
+        } catch (apiError) {
+          console.error(t('settings.loadNotificationSettingsFailed'), apiError);
+          // 失败后继续尝试从本地存储加载
+        }
+
+        // 从本地存储加载
         const savedSettings = await AsyncStorage.getItem('notificationSettings');
         if (savedSettings) {
           const parsedSettings = JSON.parse(savedSettings);
@@ -45,22 +77,41 @@ const NotificationsScreen = () => {
           setMasterSwitch(!allOff);
         }
       } catch (error) {
-        console.error('加载通知设置失败:', error);
+        console.error(t('settings.loadNotificationSettingsFailed'), error);
       } finally {
         setIsLoading(false);
       }
     };
     
     loadSettings();
-  }, []);
+  }, [t]);
 
   // 保存通知设置
   const saveSettings = async (newSettings: NotificationSettings) => {
     try {
+      // 先保存到本地
       await AsyncStorage.setItem('notificationSettings', JSON.stringify(newSettings));
+      
+      // 再同步到服务器
+      try {
+        const response = await fetch(`${API_BASE_URL}/settings/notifications`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+          },
+          body: JSON.stringify(newSettings)
+        });
+
+        if (!response.ok) {
+          console.error(t('settings.syncNotificationSettingsFailed'), await response.text());
+        }
+      } catch (apiError) {
+        console.error(t('settings.apiRequestFailed'), apiError);
+      }
     } catch (error) {
-      console.error('保存通知设置失败:', error);
-      Alert.alert('错误', '保存设置失败，请重试');
+      console.error(t('settings.saveNotificationSettingsFailed'), error);
+      Alert.alert(t('common.error'), t('settings.saveFailed'));
     }
   };
 
@@ -103,11 +154,11 @@ const NotificationsScreen = () => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>通知设置</Text>
+          <Text style={styles.headerTitle}>{t('settings.notifications')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>加载中...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -119,16 +170,16 @@ const NotificationsScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>通知设置</Text>
+        <Text style={styles.headerTitle}>{t('settings.notifications')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.masterSwitchContainer}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.masterSwitchText}>通知</Text>
+            <Text style={styles.masterSwitchText}>{t('settings.notifications')}</Text>
             <Text style={styles.settingDescription}>
-              {masterSwitch ? '启用' : '禁用'}所有通知
+              {masterSwitch ? t('settings.enableAll') : t('settings.disableAll')}
             </Text>
           </View>
           <Switch
@@ -143,12 +194,12 @@ const NotificationsScreen = () => {
         <View style={styles.divider} />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>互动通知</Text>
+          <Text style={styles.sectionTitle}>{t('settings.interactionNotifications')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>点赞</Text>
-              <Text style={styles.settingDescription}>有人喜欢你的视频时通知你</Text>
+              <Text style={styles.settingText}>{t('common.like')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.likeNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -162,8 +213,8 @@ const NotificationsScreen = () => {
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>评论</Text>
-              <Text style={styles.settingDescription}>有人评论你的视频时通知你</Text>
+              <Text style={styles.settingText}>{t('common.comment')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.commentNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -177,8 +228,8 @@ const NotificationsScreen = () => {
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>新关注者</Text>
-              <Text style={styles.settingDescription}>有人关注你时通知你</Text>
+              <Text style={styles.settingText}>{t('settings.newFollowers')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.followerNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -192,8 +243,8 @@ const NotificationsScreen = () => {
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>提及</Text>
-              <Text style={styles.settingDescription}>有人在评论中@你时通知你</Text>
+              <Text style={styles.settingText}>{t('settings.mentions')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.mentionNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -207,12 +258,12 @@ const NotificationsScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>消息通知</Text>
+          <Text style={styles.sectionTitle}>{t('settings.messageNotifications')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>私信</Text>
-              <Text style={styles.settingDescription}>有人给你发送私信时通知你</Text>
+              <Text style={styles.settingText}>{t('settings.directMessages')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.dmNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -226,12 +277,12 @@ const NotificationsScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>其他通知</Text>
+          <Text style={styles.sectionTitle}>{t('settings.otherNotifications')}</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>系统通知</Text>
-              <Text style={styles.settingDescription}>接收系统更新、安全提醒等通知</Text>
+              <Text style={styles.settingText}>{t('settings.systemNotifications')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.systemNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -242,11 +293,11 @@ const NotificationsScreen = () => {
               disabled={!masterSwitch}
             />
           </View>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingText}>电子邮件通知</Text>
-              <Text style={styles.settingDescription}>通过电子邮件接收重要通知</Text>
+              <Text style={styles.settingText}>{t('settings.emailNotifications')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.emailNotificationDesc')}</Text>
             </View>
             <Switch
               trackColor={{ false: '#3e3e3e', true: '#FF4040' }}
@@ -258,10 +309,6 @@ const NotificationsScreen = () => {
             />
           </View>
         </View>
-
-        <Text style={styles.tip}>
-          提示: 你可以随时在此处更改通知设置。某些系统通知可能无法关闭。
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -294,36 +341,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 16,
+    backgroundColor: '#111',
   },
   masterSwitchText: {
-    color: 'white',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
+    color: 'white',
   },
   divider: {
     height: 1,
     backgroundColor: '#333',
-    marginHorizontal: 16,
-    marginBottom: 8,
+    marginVertical: 10,
   },
   section: {
     marginBottom: 20,
-    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
+    color: '#999',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#111',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#222',
   },
   settingTextContainer: {
     flex: 1,
@@ -335,15 +383,7 @@ const styles = StyleSheet.create({
   settingDescription: {
     color: '#999',
     fontSize: 14,
-    marginTop: 4,
-  },
-  tip: {
-    color: '#888',
-    fontSize: 14,
-    margin: 16,
-    marginTop: 0,
-    textAlign: 'center',
-    marginBottom: 30,
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -351,9 +391,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFF',
+    color: '#999',
     fontSize: 16,
-  }
+  },
 });
 
 export default NotificationsScreen; 

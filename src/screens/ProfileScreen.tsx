@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { RootState, useAppDispatch } from '../store';
 import { updateProfileAsync, logoutAsync, getCurrentUserAsync } from '../store/slices/authSlice';
 import { getImageUrlWithCacheBuster } from '../services/api';
@@ -11,6 +12,7 @@ import { getImageUrlWithCacheBuster } from '../services/api';
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(); // 使用翻译hook
   const { user, loading } = useSelector((state: RootState) => state.auth);
   const [videos, setVideos] = useState([]);
   const [activeTab, setActiveTab] = useState('videos');
@@ -87,7 +89,7 @@ const ProfileScreen = () => {
         />
       );
     } else {
-      return <Text style={styles.avatarText}>{user?.username?.[0] || '我'}</Text>;
+      return <Text style={styles.avatarText}>{user?.username?.[0] || t('profile.me')}</Text>;
     }
   };
 
@@ -108,22 +110,22 @@ const ProfileScreen = () => {
 
   const handleLogout = async () => {
     Alert.alert(
-      '确认登出',
-      '您确定要退出登录吗？',
+      t('auth.logoutConfirmTitle'),
+      t('auth.logoutConfirmMessage'),
       [
         {
-          text: '取消',
+          text: t('common.cancel'),
           style: 'cancel'
         },
         {
-          text: '确定',
+          text: t('common.confirm'),
           onPress: async () => {
             setIsLoggingOut(true);
             try {
               await dispatch(logoutAsync()).unwrap();
               // 登出成功，Redux会自动更新状态，用户会被重定向到登录页面
             } catch (error) {
-              Alert.alert('登出失败', '请稍后重试');
+              Alert.alert(t('auth.logoutFailed'), t('common.tryAgainLater'));
             } finally {
               setIsLoggingOut(false);
             }
@@ -147,9 +149,9 @@ const ProfileScreen = () => {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="videocam-outline" size={50} color="#444" />
-          <Text style={styles.emptyText}>您还没有发布任何视频</Text>
+          <Text style={styles.emptyText}>{t('profile.noVideosYet')}</Text>
           <TouchableOpacity style={styles.uploadButton}>
-            <Text style={styles.uploadButtonText}>立即上传</Text>
+            <Text style={styles.uploadButtonText}>{t('profile.uploadNow')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -159,7 +161,7 @@ const ProfileScreen = () => {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="heart-outline" size={50} color="#444" />
-          <Text style={styles.emptyText}>您还没有点赞任何视频</Text>
+          <Text style={styles.emptyText}>{t('profile.noLikedVideos')}</Text>
         </View>
       );
     }
@@ -183,7 +185,7 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>我的主页</Text>
+        <Text style={styles.headerTitle}>{t('profile.myPage')}</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
             style={styles.headerButton} 
@@ -213,26 +215,26 @@ const ProfileScreen = () => {
         <View style={styles.avatar}>
           {getAvatarContent()}
         </View>
-        <Text style={styles.username}>{user?.username || '用户名'}</Text>
-        <Text style={styles.bio}>{user?.bio || '这里是个人简介，请在设置中完善您的资料。'}</Text>
+        <Text style={styles.username}>{user?.username || t('profile.loading')}</Text>
+        <Text style={styles.userId}>@{user?._id ? user._id.substring(0, 8) : 'user'}</Text>
         
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{user?.following?.length || 0}</Text>
-            <Text style={styles.statLabel}>关注</Text>
+            <Text style={styles.statValue}>{user?.following?.length || 0}</Text>
+            <Text style={styles.statLabel}>{t('profile.following')}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{user?.followers?.length || 0}</Text>
-            <Text style={styles.statLabel}>粉丝</Text>
+            <Text style={styles.statValue}>{user?.followers?.length || 0}</Text>
+            <Text style={styles.statLabel}>{t('profile.followers')}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>获赞</Text>
+            <Text style={styles.statValue}>{0}</Text>
+            <Text style={styles.statLabel}>{t('profile.likes')}</Text>
           </View>
         </View>
         
         <TouchableOpacity style={styles.editProfileButton} onPress={navigateToEditProfile}>
-          <Text style={styles.editProfileText}>编辑资料</Text>
+          <Text style={styles.editProfileButtonText}>{t('profile.editProfile')}</Text>
         </TouchableOpacity>
       </View>
       
@@ -322,11 +324,9 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 8,
   },
-  bio: {
+  userId: {
     fontSize: 14,
     color: '#ccc',
-    textAlign: 'center',
-    marginHorizontal: 40,
     marginBottom: 16,
   },
   statsContainer: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
   },
-  statNumber: {
+  statValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: 'white',
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     borderColor: '#444',
     borderRadius: 20,
   },
-  editProfileText: {
+  editProfileButtonText: {
     color: 'white',
     fontWeight: '500',
   },

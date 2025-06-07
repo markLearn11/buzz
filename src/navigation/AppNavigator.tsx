@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { RootState, useAppDispatch } from '../store';
 import { setActiveTab } from '../store/slices/appSlice';
+import '../i18n'; // 导入i18n配置
 
 // 屏幕
 import HomeScreen from '../screens/HomeScreen';
@@ -28,6 +30,12 @@ import PasswordChangeScreen from '../screens/settings/PasswordChangeScreen';
 import AppearanceScreen from '../screens/settings/AppearanceScreen';
 import NotificationsScreen from '../screens/settings/NotificationsScreen';
 import PrivacyScreen from '../screens/settings/PrivacyScreen';
+import LanguageScreen from '../screens/settings/LanguageScreen';
+import StorageScreen from '../screens/settings/StorageScreen';
+import AboutScreen from '../screens/settings/AboutScreen';
+import HelpScreen from '../screens/settings/HelpScreen';
+import TermsScreen from '../screens/settings/TermsScreen';
+import PrivacyPolicyScreen from '../screens/settings/PrivacyPolicyScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -68,11 +76,18 @@ const ProfileStack = () => (
     <Stack.Screen name="Appearance" component={AppearanceScreen} />
     <Stack.Screen name="NotificationSettings" component={NotificationsScreen} />
     <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
+    <Stack.Screen name="LanguageSettings" component={LanguageScreen} />
+    <Stack.Screen name="StorageSettings" component={StorageScreen} />
+    <Stack.Screen name="AboutUs" component={AboutScreen} />
+    <Stack.Screen name="HelpCenter" component={HelpScreen} />
+    <Stack.Screen name="TermsScreen" component={TermsScreen} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
   </Stack.Navigator>
 );
 
 const MainTabs = () => {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(); // 使用翻译hook
   
   return (
     <Tab.Navigator
@@ -113,11 +128,31 @@ const MainTabs = () => {
         },
       }}
     >
-      <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
-      <Tab.Screen name="Create" component={CreateStack} options={{ tabBarLabel: '' }} />
-      <Tab.Screen name="Inbox" component={InboxStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeStack} 
+        options={{ tabBarLabel: t('tabs.home') }} 
+      />
+      <Tab.Screen 
+        name="Discover" 
+        component={DiscoverScreen} 
+        options={{ tabBarLabel: t('tabs.discover') }} 
+      />
+      <Tab.Screen 
+        name="Create" 
+        component={CreateStack} 
+        options={{ tabBarLabel: '' }} 
+      />
+      <Tab.Screen 
+        name="Inbox" 
+        component={InboxStack} 
+        options={{ tabBarLabel: t('tabs.inbox') }} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileStack} 
+        options={{ tabBarLabel: t('tabs.profile') }} 
+      />
     </Tab.Navigator>
   );
 };

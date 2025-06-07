@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { loginAsync, clearError } from '../../store/slices/authSlice';
 import { useAppDispatch, useAppSelector } from '../../store';
+import { useTranslation } from 'react-i18next';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ const LoginScreen = () => {
   const dispatch = useAppDispatch();
   const navigation = useNavigation();
   const { loading, error } = useAppSelector(state => state.auth);
+  const { t } = useTranslation();
   
   useEffect(() => {
     // 组件挂载时清除错误
@@ -36,24 +38,24 @@ const LoginScreen = () => {
   
   useEffect(() => {
     if (error) {
-      Alert.alert('登录失败', error);
+      Alert.alert(t('auth.loginFailed'), error);
     }
-  }, [error]);
+  }, [error, t]);
   
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('输入错误', '请填写邮箱和密码');
+      Alert.alert(t('common.error'), t('auth.inputError'));
       return;
     }
     
     try {
-      console.log('尝试登录:', email);
+      console.log(t('auth.loginAttempt'), email);
       await dispatch(loginAsync({ email, password })).unwrap();
-      console.log('登录成功');
+      console.log(t('auth.loginSuccess'));
       // 登录成功，Redux会自动更新状态，不需要额外处理
     } catch (err) {
       // 错误已经在useEffect中处理
-      console.log('登录出错:', err);
+      console.log(t('auth.loginError'), err);
     }
   };
   
@@ -71,13 +73,13 @@ const LoginScreen = () => {
       >
         <View style={styles.logoContainer}>
           <Text style={styles.logoText}>Buzz</Text>
-          <Text style={styles.tagline}>创作、分享、交流</Text>
+          <Text style={styles.tagline}>{t('common.appTagline')}</Text>
         </View>
         
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
-            placeholder="邮箱"
+            placeholder={t('auth.email')}
             placeholderTextColor="#999"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -87,7 +89,7 @@ const LoginScreen = () => {
           
           <TextInput
             style={styles.input}
-            placeholder="密码"
+            placeholder={t('auth.password')}
             placeholderTextColor="#999"
             secureTextEntry
             value={password}
@@ -95,7 +97,7 @@ const LoginScreen = () => {
           />
           
           <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>忘记密码？</Text>
+            <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -106,18 +108,18 @@ const LoginScreen = () => {
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.buttonText}>登录中...</Text>
+                <Text style={styles.buttonText}>{t('auth.loggingIn')}</Text>
               </View>
             ) : (
-              <Text style={styles.buttonText}>登录</Text>
+              <Text style={styles.buttonText}>{t('auth.login')}</Text>
             )}
           </TouchableOpacity>
         </View>
         
         <View style={styles.footer}>
-          <Text style={styles.footerText}>还没有账号？</Text>
+          <Text style={styles.footerText}>{t('auth.noAccount')}</Text>
           <TouchableOpacity onPress={navigateToRegister}>
-            <Text style={styles.registerText}>立即注册</Text>
+            <Text style={styles.registerText}>{t('auth.register')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

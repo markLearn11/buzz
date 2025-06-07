@@ -18,12 +18,14 @@ import { RootState, useAppDispatch } from '../store';
 import { updateProfileAsync, getCurrentUserAsync, updateAvatarAsync } from '../store/slices/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrlWithCacheBuster } from '../services/api';
-import { env } from '../config/env';
+import { API_BASE_URL } from '../config/env';
+import { useTranslation } from 'react-i18next';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { user, loading } = useSelector((state: RootState) => state.auth);
+  const { t } = useTranslation();
   
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -39,7 +41,7 @@ const EditProfileScreen = () => {
       // 请求权限
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('权限被拒绝', '需要访问相册权限才能选择头像');
+        Alert.alert(t('common.permissionDenied'), t('profile.galleryPermissionNeeded'));
         return;
       }
 
@@ -58,8 +60,8 @@ const EditProfileScreen = () => {
         setAvatarLoadError(false);
       }
     } catch (error) {
-      console.error('选择图片失败:', error);
-      Alert.alert('错误', '选择图片失败，请重试');
+      console.error(t('profile.imagePickFailed'), error);
+      Alert.alert(t('common.error'), t('profile.imagePickFailed'));
     }
   };
 
@@ -83,21 +85,21 @@ const EditProfileScreen = () => {
           source={{ uri: avatarUri }} 
           style={styles.avatarImage} 
           onError={(e) => {
-            console.error('头像加载失败:', avatarUri, e.nativeEvent.error);
+            console.error(t('profile.avatarLoadFailed'), avatarUri, e.nativeEvent.error);
             // 不要设置错误状态，这会导致显示默认头像
             // setAvatarLoadError(true);
           }}
         />
       );
     } else {
-      return <Text style={styles.avatarText}>{username[0] || '用'}</Text>;
+      return <Text style={styles.avatarText}>{username[0] || t('profile.defaultAvatarText')}</Text>;
     }
   };
 
   // 保存用户资料
   const handleSave = async () => {
     if (!username.trim()) {
-      Alert.alert('错误', '用户名不能为空');
+      Alert.alert(t('common.error'), t('profile.usernameRequired'));
       return;
     }
 
@@ -106,12 +108,12 @@ const EditProfileScreen = () => {
 
     try {
       setIsSubmitting(true);
-      console.log('尝试更新用户资料:', { username, bio });
+      console.log(t('profile.updatingProfile'), { username, bio });
       
       if (user?._id) {
         // 如果有本地头像，则需要上传
         if (currentLocalAvatar) {
-          console.log('开始上传新头像...');
+          console.log(t('profile.uploadingAvatar'));
           try {
             // 准备FormData
             const formData = new FormData();
@@ -130,7 +132,7 @@ const EditProfileScreen = () => {
               type: `image/${fileType}`
             } as any);
             
-            console.log('上传头像FormData准备完成');
+            console.log(t('profile.avatarFormDataReady'));
             
             // 上传头像 - 但不修改任何本地状态，确保头像显示不变
             const updatedUserData = await dispatch(updateAvatarAsync({
@@ -138,13 +140,13 @@ const EditProfileScreen = () => {
               formData
             })).unwrap();
             
-            console.log('头像上传成功', updatedUserData);
+            console.log(t('profile.avatarUploadSuccess'), updatedUserData);
             
             // 注意：这里不设置avatar或清除localAvatarUri，确保视觉上保持一致
           } catch (error) {
-            console.error('头像上传失败:', error);
+            console.error(t('profile.avatarUploadFailed'), error);
             // 不显示警告提示，静默处理
-            console.log('头像上传失败，但将继续更新其他资料');
+            console.log(t('profile.continuingWithProfileUpdate'));
           }
         }
         
@@ -157,20 +159,20 @@ const EditProfileScreen = () => {
           }
         })).unwrap();
         
-        console.log('资料更新成功');
+        console.log(t('profile.profileUpdateSuccess'));
         
         // 静默获取最新用户数据，但不影响UI显示
         try {
           await dispatch(getCurrentUserAsync()).unwrap();
-          console.log('用户数据同步完成');
+          console.log(t('profile.userDataSyncComplete'));
         } catch (error) {
-          console.error('获取最新用户数据失败:', error);
+          console.error(t('profile.fetchUserDataFailed'), error);
         }
         
         // 成功提示并返回上一页
-        Alert.alert('成功', '资料更新成功', [
+        Alert.alert(t('common.success'), t('profile.profileUpdateSuccess'), [
           { 
-            text: '确定', 
+            text: t('common.confirm'), 
             onPress: () => {
               // 直接返回，不修改任何状态
               navigation.goBack();
@@ -178,12 +180,12 @@ const EditProfileScreen = () => {
           }
         ]);
       } else {
-        console.error('用户ID不存在');
-        Alert.alert('错误', '用户信息不完整，请重新登录');
+        console.error(t('profile.userIdMissing'));
+        Alert.alert(t('common.error'), t('profile.incompleteUserInfo'));
       }
     } catch (error) {
-      console.error('更新资料失败:', error);
-      Alert.alert('错误', '更新资料失败，请重试');
+      console.error(t('profile.profileUpdateFailed'), error);
+      Alert.alert(t('common.error'), t('profile.profileUpdateFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -199,9 +201,10 @@ const EditProfileScreen = () => {
     
     // 当用户离开页面时，清除本地头像状态
     return () => {
+      // 清理不再需要的资源
       setLocalAvatarUri('');
     };
-  }, [user?.avatar]);
+  }, [user]);
 
   // 监听本地头像的变化
   useEffect(() => {
@@ -235,7 +238,7 @@ const EditProfileScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="close" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>编辑资料</Text>
+        <Text style={styles.headerTitle}>{t('profile.editProfile')}</Text>
         <TouchableOpacity 
           style={styles.saveButton} 
           onPress={handleSave}
@@ -244,59 +247,61 @@ const EditProfileScreen = () => {
           {isSubmitting ? (
             <ActivityIndicator size="small" color="white" />
           ) : (
-            <Text style={styles.saveButtonText}>保存</Text>
+            <Text style={styles.saveButtonText}>{t('common.save')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.avatarContainer}>
-          <TouchableOpacity style={styles.avatar} onPress={pickImage}>
+          <View style={styles.avatar}>
             {renderAvatar()}
-            <View style={styles.editAvatarButton}>
-              <Ionicons name="camera" size={16} color="white" />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.changePhotoText}>更换头像</Text>
+            <TouchableOpacity style={styles.avatarEditButton} onPress={pickImage}>
+              <View style={styles.avatarEditIconContainer}>
+                <Ionicons name="camera" size={20} color="white" />
+              </View>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.changePhotoText}>{t('profile.changePhoto')}</Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>用户名</Text>
+          <Text style={styles.label}>{t('profile.username')}</Text>
           <TextInput
             style={styles.input}
             value={username}
             onChangeText={setUsername}
-            placeholder="输入用户名"
+            placeholder={t('profile.enterUsername')}
             placeholderTextColor="#666"
           />
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>个人简介</Text>
+          <Text style={styles.label}>{t('profile.bio')}</Text>
           <TextInput
             style={[styles.input, styles.bioInput]}
             value={bio}
             onChangeText={setBio}
-            placeholder="介绍一下自己吧"
+            placeholder={t('profile.introduceYourself')}
             placeholderTextColor="#666"
             multiline
             maxLength={100}
           />
-          <Text style={styles.characterCount}>{bio.length}/100</Text>
+          <Text style={styles.characterCount}>{bio.length}/{t('profile.maxLength')}</Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>邮箱</Text>
+          <Text style={styles.label}>{t('profile.email')}</Text>
           <TextInput
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="输入邮箱"
+            placeholder={t('profile.enterEmail')}
             placeholderTextColor="#666"
             keyboardType="email-address"
             editable={false} // 邮箱通常不允许直接修改
           />
-          <Text style={styles.inputNote}>邮箱不可修改</Text>
+          <Text style={styles.inputNote}>{t('profile.emailNote')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -323,13 +328,13 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   saveButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   saveButtonText: {
     color: '#FF4040',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -337,40 +342,46 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 20,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FF4040',
+    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    overflow: 'hidden',
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   avatarText: {
     color: 'white',
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: 'bold',
   },
-  editAvatarButton: {
+  avatarEditButton: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingVertical: 4,
+    bottom: 0,
+  },
+  avatarEditIconContainer: {
+    backgroundColor: '#FF4040',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'black',
   },
   changePhotoText: {
     color: '#FF4040',
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 16,
+    marginTop: 10,
   },
   formGroup: {
     marginBottom: 24,
@@ -378,19 +389,17 @@ const styles = StyleSheet.create({
   label: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#111',
-    color: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: '#222',
     borderRadius: 8,
+    padding: 12,
+    color: 'white',
     fontSize: 16,
   },
   bioInput: {
-    height: 100,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   characterCount: {
@@ -403,7 +412,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     marginTop: 4,
-  }
+  },
 });
 
 export default EditProfileScreen; 

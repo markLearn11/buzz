@@ -5,28 +5,30 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch } from '../store';
 import { logoutAsync } from '../store/slices/authSlice';
+import { useTranslation } from 'react-i18next';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     Alert.alert(
-      '退出登录',
-      '确定要退出登录吗？',
+      t('auth.logoutConfirmTitle'),
+      t('auth.logoutConfirmMessage'),
       [
         {
-          text: '取消',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: '确定',
+          text: t('common.confirm'),
           onPress: async () => {
             try {
               await dispatch(logoutAsync());
             } catch (error) {
-              console.error('退出登录失败:', error);
-              Alert.alert('错误', '退出登录失败，请重试');
+              console.error(t('auth.logoutFailed'), error);
+              Alert.alert(t('common.error'), t('auth.logoutFailed'));
             }
           },
         },
@@ -41,19 +43,19 @@ const SettingsScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>设置</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>账户设置</Text>
+          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => navigation.navigate('EditProfile')}
           >
             <Ionicons name="person-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>个人资料</Text>
+            <Text style={styles.menuText}>{t('profile.editProfile')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           <TouchableOpacity 
@@ -61,7 +63,7 @@ const SettingsScreen = () => {
             onPress={() => navigation.navigate('PasswordChange')}
           >
             <Ionicons name="lock-closed-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>修改密码</Text>
+            <Text style={styles.menuText}>{t('auth.changePassword')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           <TouchableOpacity 
@@ -69,16 +71,19 @@ const SettingsScreen = () => {
             onPress={() => navigation.navigate('NotificationSettings')}
           >
             <Ionicons name="notifications-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>通知设置</Text>
+            <Text style={styles.menuText}>{t('settings.notifications')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>应用设置</Text>
-          <TouchableOpacity style={styles.menuItem}>
+          <Text style={styles.sectionTitle}>{t('settings.title')}</Text>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('LanguageSettings')}
+          >
             <Ionicons name="language-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>语言设置</Text>
+            <Text style={styles.menuText}>{t('settings.language')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           <TouchableOpacity 
@@ -86,7 +91,7 @@ const SettingsScreen = () => {
             onPress={() => navigation.navigate('PrivacySettings')}
           >
             <Ionicons name="shield-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>隐私设置</Text>
+            <Text style={styles.menuText}>{t('settings.privacy')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
           <TouchableOpacity 
@@ -94,12 +99,15 @@ const SettingsScreen = () => {
             onPress={() => navigation.navigate('Appearance')}
           >
             <Ionicons name="eye-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>外观模式</Text>
+            <Text style={styles.menuText}>{t('settings.appearance')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('StorageSettings')}
+          >
             <Ionicons name="cloud-download-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>存储与缓存</Text>
+            <Text style={styles.menuText}>{t('settings.storage')}</Text>
             <View style={styles.storageBadge}>
               <Text style={styles.storageBadgeText}>82.5MB</Text>
             </View>
@@ -108,34 +116,46 @@ const SettingsScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>关于</Text>
-          <TouchableOpacity style={styles.menuItem}>
+          <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('AboutUs')}
+          >
             <Ionicons name="information-circle-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>关于我们</Text>
+            <Text style={styles.menuText}>{t('settings.about')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('HelpCenter')}
+          >
             <Ionicons name="help-circle-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>帮助中心</Text>
+            <Text style={styles.menuText}>{t('settings.help')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('TermsScreen')}
+          >
             <Ionicons name="document-text-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>用户协议</Text>
+            <Text style={styles.menuText}>{t('settings.terms')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+          >
             <Ionicons name="shield-checkmark-outline" size={22} color="#ccc" />
-            <Text style={styles.menuText}>隐私政策</Text>
+            <Text style={styles.menuText}>{t('settings.privacyPolicy')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>退出登录</Text>
+          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>版本 1.0.0</Text>
+        <Text style={styles.version}>{t('settings.version', { version: '1.0.0' })}</Text>
       </ScrollView>
     </SafeAreaView>
   );

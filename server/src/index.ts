@@ -23,6 +23,7 @@ import userRoutes from './routes/user.routes';
 import videoRoutes from './routes/video.routes';
 import commentRoutes from './routes/comment.routes';
 import chatRoutes from './routes/chat.routes';
+import settingsRoutes from './routes/settings.routes';
 
 // 导入Socket.IO处理器
 import { setupSocketIO } from './services/socket.service';
@@ -86,6 +87,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 主页路由
 app.get('/', (req, res) => {

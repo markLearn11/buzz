@@ -7,6 +7,9 @@ import { View, Text, StyleSheet, LogBox, ActivityIndicator } from 'react-native'
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { I18nextProvider } from 'react-i18next';
+import i18n from './src/i18n';
+import { useTranslation } from 'react-i18next';
 
 import { store, useAppDispatch, useAppSelector } from './src/store';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -26,6 +29,7 @@ const AppContent = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const { error } = useAppSelector(state => state.auth);
   const [networkCheckFailed, setNetworkCheckFailed] = useState(false);
+  const { t } = useTranslation();
 
   // 检查认证状态
   useEffect(() => {
@@ -46,21 +50,21 @@ const AppContent = () => {
               .then(freshUserData => {
                 // 更新成功后，保存最新的用户数据
                 AsyncStorage.setItem('userData', JSON.stringify(freshUserData))
-                  .catch(err => console.error('保存更新的用户数据失败:', err));
+                  .catch(err => console.error(t('app.saveUserDataFailed'), err));
               })
               .catch(err => {
-                console.error('后台更新用户数据失败:', err);
+                console.error(t('app.updateUserDataFailed'), err);
                 // 即使后台更新失败，也不影响用户体验
               });
           } catch (parseError) {
-            console.error('解析用户数据失败:', parseError);
+            console.error(t('app.parseUserDataFailed'), parseError);
             // 如果解析失败，尝试重新获取用户数据
             try {
               const userData = await dispatch(getCurrentUserAsync()).unwrap();
               // 获取成功后保存用户数据
               await AsyncStorage.setItem('userData', JSON.stringify(userData));
             } catch (fetchError) {
-              console.error('获取用户信息失败:', fetchError);
+              console.error(t('app.fetchUserInfoFailed'), fetchError);
               // 如果获取失败，清除token
               await AsyncStorage.removeItem('token');
               await AsyncStorage.removeItem('userData');
@@ -68,7 +72,7 @@ const AppContent = () => {
           }
         }
       } catch (error) {
-        console.error('认证检查失败:', error);
+        console.error(t('app.authCheckFailed'), error);
       } finally {
         // 无论成功还是失败，都设置isCheckingAuth为false
         setIsCheckingAuth(false);
@@ -76,7 +80,7 @@ const AppContent = () => {
     };
 
     checkAuthStatus();
-  }, [dispatch]);
+  }, [dispatch, t]);
 
   // 设置 Expo AV 全局音频配置
   useEffect(() => {
@@ -90,12 +94,12 @@ const AppContent = () => {
           playThroughEarpieceAndroid: false,
         });
       } catch (error) {
-        console.error('设置音频模式失败:', error);
+        console.error(t('app.audioSetupFailed'), error);
       }
     };
     
     setupAudio();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     // 注意：NetInfo 在新版本中已从react-native核心库移出
@@ -126,14 +130,14 @@ const AppContent = () => {
               break;
             }
           } catch (e) {
-            console.log(`检查网络连接失败 (${url}):`, e);
+            console.log(`${t('app.networkCheckFailed')} (${url}):`, e);
           }
         }
         
         setIsConnected(isAnySuccess);
         setNetworkCheckFailed(!isAnySuccess);
       } catch (error) {
-        console.error('网络连接检查失败:', error);
+        console.error(t('app.networkCheckFailed'), error);
         setNetworkCheckFailed(true);
         setIsConnected(false);
       }
@@ -143,7 +147,7 @@ const AppContent = () => {
     const intervalId = setInterval(checkConnection, 30000); // 每30秒检查一次，减少频率
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [t]);
 
   // 如果正在检查认证状态，显示加载指示器
   if (isCheckingAuth) {
@@ -151,7 +155,7 @@ const AppContent = () => {
       <View style={styles.loadingContainer}>
         <Text style={styles.logoText}>Buzz</Text>
         <ActivityIndicator size="large" color="#FF4040" style={styles.loader} />
-        <Text style={styles.loadingText}>正在加载...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -164,8 +168,8 @@ const AppContent = () => {
         <View style={styles.networkWarning}>
           <Text style={styles.networkWarningText}>
             {networkCheckFailed 
-              ? '网络连接不可用，视频可能无法播放，请检查网络设置' 
-              : '网络连接不稳定，视频加载可能较慢'}
+              ? t('app.networkUnavailable') 
+              : t('app.networkUnstable')}
           </Text>
         </View>
       )}
@@ -177,11 +181,13 @@ const AppContent = () => {
 export default function App() {
   return (
     <Provider store={store}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <AppContent />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <I18nextProvider i18n={i18n}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <AppContent />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </I18nextProvider>
     </Provider>
   );
 }
