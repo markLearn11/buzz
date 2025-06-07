@@ -29,6 +29,7 @@ import { fetchVideoCommentsAsync, addCommentAsync, likeCommentAsync, unlikeComme
 import { fetchVideoByIdAsync } from '../store/slices/videosSlice';
 import { formatTime } from '../utils/timeUtils';
 import api from '../services/api';
+import CommentsBottomSheet from '../components/CommentsBottomSheet';
 
 // 定义类型
 interface Comment {
@@ -141,6 +142,9 @@ const VideoDetailScreen = () => {
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  
+  // 添加底部评论弹窗状态
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
   
   // 添加本地状态来管理点赞
   const [localVideoLikes, setLocalVideoLikes] = useState<number | null>(null);
@@ -305,23 +309,33 @@ const VideoDetailScreen = () => {
     }
   }, [comments, dispatch]);
   
-  // 加载更多评论
-  const loadMoreComments = () => {
-    if (hasMore && !commentsLoading && videoId) {
-      dispatch(fetchVideoCommentsAsync({ videoId, page: page + 1, limit: 20 }));
+  // 显示评论弹窗
+  const showComments = () => {
+    // 加载评论数据
+    if (comments.length === 0 && !commentsLoading) {
+      dispatch(fetchVideoCommentsAsync({ videoId, page: 1, limit: 20 }));
     }
+    setIsCommentsVisible(true);
   };
   
-  // 提交评论
-  const handleSubmitComment = async () => {
-    if (!commentText.trim()) return;
+  // 关闭评论弹窗
+  const hideComments = () => {
+    setIsCommentsVisible(false);
+  };
+  
+  // 提交评论处理函数
+  const handleSubmitComment = async (text: string) => {
+    if (!text.trim() || isSubmitting) return;
     
     try {
       setIsSubmitting(true);
-      await dispatch(addCommentAsync({ videoId, content: commentText })).unwrap();
-      setCommentText('');
+      await dispatch(addCommentAsync({ 
+        videoId, 
+        content: text.trim(),
+      })).unwrap();
     } catch (error: any) {
-      Alert.alert('评论失败', error.message || '添加评论失败，请重试');
+      console.error('评论提交失败:', error);
+      Alert.alert('评论失败', error.message || '提交评论失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -664,7 +678,7 @@ const VideoDetailScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>评论</Text>
+        <Text style={styles.headerTitle}>视频详情</Text>
         <View style={{ width: 24 }} />
       </View>
       
@@ -786,60 +800,33 @@ const VideoDetailScreen = () => {
         </Text>
       </View>
       
-      <View style={styles.commentHeader}>
-        <Text style={styles.commentHeaderText}>
-          {comments.length > 0 ? `${comments.length}条评论` : '暂无评论'}
+      {/* 评论按钮 */}
+      <TouchableOpacity style={styles.commentButton} onPress={showComments}>
+        <Ionicons name="chatbubble-outline" size={22} color="white" />
+        <Text style={styles.commentButtonText}>
+          {comments.length > 0 ? `${comments.length}条评论` : '查看评论'}
         </Text>
-      </View>
+        <Ionicons name="chevron-forward" size={18} color="#666" />
+      </TouchableOpacity>
       
-      <FlatList
-        data={comments}
-        renderItem={renderComment}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.commentsList}
-        showsVerticalScrollIndicator={false}
-        onEndReached={loadMoreComments}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          commentsLoading && comments.length > 0 ? (
-            <View style={styles.loadingFooter}>
-              <ActivityIndicator size="small" color="#FF4040" />
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          commentsLoading ? (
-            <View style={styles.emptyList}>
-              <ActivityIndicator size="large" color="#FF4040" />
-            </View>
-          ) : (
-            <View style={styles.emptyList}>
-              <Text style={styles.emptyText}>暂无评论，快来发表第一条评论吧</Text>
-            </View>
-          )
-        }
+      {/* 底部评论弹窗 */}
+      <CommentsBottomSheet
+        isVisible={isCommentsVisible}
+        onClose={hideComments}
+        comments={comments}
+        isLoading={commentsLoading}
+        hasMore={hasMore}
+        onLoadMore={() => {
+          if (hasMore && !commentsLoading) {
+            dispatch(fetchVideoCommentsAsync({ videoId, page: page + 1, limit: 20 }));
+          }
+        }}
+        onSubmitComment={handleSubmitComment}
+        onLikeComment={handleLikeComment}
+        localCommentLikes={localCommentLikes}
+        localCommentIsLiked={localCommentIsLiked}
+        processingLikes={processingLikes}
       />
-      
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="添加评论..."
-          placeholderTextColor="#999"
-          value={commentText}
-          onChangeText={setCommentText}
-        />
-        <TouchableOpacity 
-          style={styles.sendButton}
-          onPress={handleSubmitComment}
-          disabled={isSubmitting || !commentText.trim()}
-        >
-          <Ionicons 
-            name="send" 
-            size={20} 
-            color={isSubmitting || !commentText.trim() ? "#666" : "#FF4040"} 
-          />
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -1080,6 +1067,20 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#999',
     fontSize: 14,
+  },
+  // 添加评论按钮样式
+  commentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  commentButtonText: {
+    color: 'white',
+    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
   },
 });
 

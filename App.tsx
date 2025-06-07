@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import { View, Text, StyleSheet, LogBox, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { store, useAppDispatch, useAppSelector } from './src/store';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -176,9 +177,11 @@ const AppContent = () => {
 export default function App() {
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <AppContent />
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <AppContent />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </Provider>
   );
 }

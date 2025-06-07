@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   View, 
   ScrollView,
@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { RootState, useAppDispatch } from '../store';
+import { RootState, useAppDispatch, useAppSelector } from '../store';
 import { 
   fetchVideosStart, 
   fetchVideosSuccess, 
@@ -33,7 +33,9 @@ import {
   unlikeVideoAsync,
   likeVideoAsync
 } from '../store/slices/videosSlice';
+import { fetchVideoCommentsAsync, addCommentAsync, likeCommentAsync, unlikeCommentAsync } from '../store/slices/commentsSlice';
 import api from '../services/api';
+import CommentsBottomSheet from '../components/CommentsBottomSheet';
 
 // 模拟视频数据
 const DUMMY_VIDEOS = [
@@ -265,8 +267,121 @@ const VideoItem = ({ item, isActive }) => {
     }
   };
   
+  // 评论相关状态
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localCommentLikes, setLocalCommentLikes] = useState<{[commentId: string]: number}>({});
+  const [localCommentIsLiked, setLocalCommentIsLiked] = useState<{[commentId: string]: boolean}>({});
+  const [processingLikes, setProcessingLikes] = useState<{[commentId: string]: boolean}>({});
+  
+  // 获取评论数据
+  const { comments, loading: commentsLoading, hasMore, page } = useAppSelector(state => state.comments);
+  
   const handleComment = () => {
-    navigation.navigate('VideoDetail', { videoId: item.id });
+    // 显示评论弹窗而不是导航到VideoDetail页面
+    // 加载评论数据
+    if (comments.length === 0 && !commentsLoading) {
+      dispatch(fetchVideoCommentsAsync({ videoId: item.id, page: 1, limit: 20 }));
+    }
+    setIsCommentsVisible(true);
+  };
+  
+  // 关闭评论弹窗
+  const hideComments = () => {
+    setIsCommentsVisible(false);
+  };
+  
+  // 提交评论处理函数
+  const handleSubmitComment = async (text: string) => {
+    if (!text.trim() || isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      await dispatch(addCommentAsync({ 
+        videoId: item.id, 
+        content: text.trim(),
+      })).unwrap();
+      
+      // 更新评论计数
+      dispatch(updateLocalVideo({
+        ...item,
+        comments: item.comments + 1
+      }));
+    } catch (error: any) {
+      console.error('评论提交失败:', error);
+      Alert.alert('评论失败', error.message || '提交评论失败，请重试');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // 处理评论点赞
+  const handleLikeComment = async (commentId: string, isLiked: boolean) => {
+    // 防止重复点击
+    if (processingLikes[commentId]) return;
+    
+    try {
+      // 标记为处理中
+      setProcessingLikes(prev => ({...prev, [commentId]: true}));
+      
+      // 获取当前状态
+      const currentIsLiked = localCommentIsLiked[commentId] !== undefined 
+        ? localCommentIsLiked[commentId] 
+        : isLiked;
+        
+      const currentLikes = localCommentLikes[commentId] !== undefined
+        ? localCommentLikes[commentId]
+        : (comments.find(c => c.id === commentId)?.likes || 
+           comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.likes || 
+           0);
+      
+      // 更新本地状态
+      setLocalCommentIsLiked(prev => ({
+        ...prev, 
+        [commentId]: !currentIsLiked
+      }));
+      
+      setLocalCommentLikes(prev => ({
+        ...prev,
+        [commentId]: currentIsLiked 
+          ? Math.max(0, currentLikes - 1) 
+          : currentLikes + 1
+      }));
+      
+      // 发送API请求
+      if (currentIsLiked) {
+        await dispatch(unlikeCommentAsync(commentId)).unwrap();
+      } else {
+        await dispatch(likeCommentAsync(commentId)).unwrap();
+      }
+    } catch (error: any) {
+      // 如果API请求失败，恢复原来的状态
+      console.error('评论点赞操作失败:', error);
+      
+      // 恢复本地状态
+      const originalIsLiked = comments.find(c => c.id === commentId)?.isLiked || 
+                             comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.isLiked || 
+                             false;
+      
+      const originalLikes = comments.find(c => c.id === commentId)?.likes || 
+                           comments.flatMap(c => c.replies || []).find(r => r.id === commentId)?.likes || 
+                           0;
+      
+      setLocalCommentIsLiked(prev => ({
+        ...prev,
+        [commentId]: originalIsLiked
+      }));
+      
+      setLocalCommentLikes(prev => ({
+        ...prev,
+        [commentId]: originalLikes
+      }));
+      
+      Alert.alert('操作失败', error.message || '点赞操作失败，请重试');
+    } finally {
+      // 取消处理中状态
+      setProcessingLikes(prev => ({...prev, [commentId]: false}));
+    }
   };
   
   const handleShare = () => {
@@ -470,6 +585,25 @@ const VideoItem = ({ item, isActive }) => {
           <Text style={styles.loadingText}>加载视频中...</Text>
         </View>
       )}
+      
+      {/* 底部评论弹窗 */}
+      <CommentsBottomSheet
+        isVisible={isCommentsVisible}
+        onClose={hideComments}
+        comments={comments}
+        isLoading={commentsLoading}
+        hasMore={hasMore}
+        onLoadMore={() => {
+          if (hasMore && !commentsLoading) {
+            dispatch(fetchVideoCommentsAsync({ videoId: item.id, page: page + 1, limit: 20 }));
+          }
+        }}
+        onSubmitComment={handleSubmitComment}
+        onLikeComment={handleLikeComment}
+        localCommentLikes={localCommentLikes}
+        localCommentIsLiked={localCommentIsLiked}
+        processingLikes={processingLikes}
+      />
     </View>
   );
 };
