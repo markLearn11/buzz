@@ -6,6 +6,8 @@ import {
   StyleSheet, 
   ActivityIndicator,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Pressable,
   Text,
   Platform,
   StatusBar,
@@ -168,6 +170,8 @@ const VideoItem = ({ item, isActive }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [loadRetryCount, setLoadRetryCount] = useState(0); // 保留重试计数
+  const [lastTapTime, setLastTapTime] = useState(0); // 添加记录最后点击时间的状态
+  const [tapCount, setTapCount] = useState(0); // 添加点击次数计数器
   
   // 从全局状态获取是否应该暂停所有视频
   const shouldPauseAllVideos = useSelector((state: RootState) => state.app.shouldPauseAllVideos);
@@ -175,6 +179,11 @@ const VideoItem = ({ item, isActive }) => {
   
   // 根据全局状态和本地状态决定视频是否应该播放
   const shouldPlay = isActive && !isPaused && isVideoTabActive && !shouldPauseAllVideos;
+  
+  // 添加日志以跟踪shouldPlay的值
+  useEffect(() => {
+    console.log(`视频播放状态 - shouldPlay: ${shouldPlay}, isPaused: ${isPaused}, isActive: ${isActive}`);
+  }, [shouldPlay, isPaused, isActive]);
   
   // 处理视频加载错误
   const handleVideoError = async (error) => {
@@ -223,6 +232,14 @@ const VideoItem = ({ item, isActive }) => {
       // 本地更新UI
       const isLiked = item.isLiked || false;
       
+      // 如果已经点赞，则不再重复点赞
+      if (isLiked) {
+        console.log('视频已经被点赞，忽略操作');
+        return;
+      }
+      
+      console.log('执行点赞操作');
+      
       // 更新本地状态
       dispatch(updateLocalVideo({
         ...item,
@@ -236,6 +253,8 @@ const VideoItem = ({ item, isActive }) => {
       } else {
         await dispatch(likeVideoAsync(item.id)).unwrap();
       }
+      
+      console.log('点赞操作完成');
     } catch (error: any) {
       console.error('点赞操作失败:', error);
       
@@ -264,7 +283,43 @@ const VideoItem = ({ item, isActive }) => {
   
   const togglePlayPause = () => {
     // 使用函数式更新确保状态一致性
-    setIsPaused(prevState => !prevState);
+    setIsPaused(prevState => {
+      const newState = !prevState;
+      console.log(`视频状态切换: ${prevState ? '播放' : '暂停'} -> ${newState ? '暂停' : '播放'}`);
+      
+      // 使用ref直接控制视频播放状态
+      if (videoRef.current) {
+        if (newState) {
+          console.log('直接调用视频暂停');
+          videoRef.current.pauseAsync();
+        } else {
+          console.log('直接调用视频播放');
+          videoRef.current.playAsync();
+        }
+      }
+      
+      return newState;
+    });
+  };
+
+  // 处理视频区域点击
+  const handleVideoPress = () => {
+    console.log('视频区域被点击 - 新的实现');
+    
+    // 直接切换播放/暂停状态，不再处理双击和多次点击
+    togglePlayPause();
+    
+    // 以下是双击点赞逻辑，保留但简化
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // 双击判定时间间隔(毫秒)
+    
+    if (now - lastTapTime < DOUBLE_TAP_DELAY) {
+      console.log('检测到双击，触发点赞');
+      handleLike();
+      setLastTapTime(0);
+    } else {
+      setLastTapTime(now);
+    }
   };
   
   // 计算底部安全区域
@@ -278,7 +333,14 @@ const VideoItem = ({ item, isActive }) => {
   return (
     <View style={[styles.videoContainer, { height: FIXED_VIDEO_HEIGHT }]}>
       {videoUrl ? (
-        <>
+        <Pressable 
+          style={StyleSheet.absoluteFill} 
+          onPress={handleVideoPress}
+          android_ripple={{color: 'rgba(255, 255, 255, 0.1)'}}
+          hitSlop={0}
+          pressRetentionOffset={0}
+          delayLongPress={300}
+        >
           <Video
             ref={videoRef}
             source={{ uri: videoUrl }}
@@ -303,31 +365,6 @@ const VideoItem = ({ item, isActive }) => {
               setIsLoading(true);
             }}
           />
-          
-          <TouchableOpacity 
-            style={styles.videoTouchable} 
-            activeOpacity={1}
-            onPress={togglePlayPause}
-          >
-            {isPaused && (
-              <View style={styles.playButtonOverlay}>
-                <Ionicons name="play" size={50} color="rgba(255, 255, 255, 0.8)" />
-              </View>
-            )}
-          </TouchableOpacity>
-          
-          {isLoading && (
-            <View style={styles.loaderOverlay}>
-              <ActivityIndicator size="large" color="#FF4040" />
-            </View>
-          )}
-          
-          {hasError && !isLoading && (
-            <View style={styles.errorOverlay}>
-              <Ionicons name="alert-circle-outline" size={40} color="#FF4040" />
-              <Text style={styles.errorText}>视频加载失败</Text>
-            </View>
-          )}
           
           {/* 用户信息和交互按钮 */}
           <View style={[
@@ -376,10 +413,6 @@ const VideoItem = ({ item, isActive }) => {
                 <Ionicons name="arrow-redo" size={35} color="white" />
                 <Text style={styles.controlText}>{item.shares}</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.controlButton} onPress={togglePlayPause}>
-                <Ionicons name={isPaused ? "play" : "pause"} size={35} color="white" />
-              </TouchableOpacity>
             </View>
             
             {/* 底部渐变和信息 */}
@@ -411,7 +444,26 @@ const VideoItem = ({ item, isActive }) => {
               </View>
             </View>
           </View>
-        </>
+          
+          {isLoading && (
+            <View style={styles.loaderOverlay}>
+              <ActivityIndicator size="large" color="#FF4040" />
+            </View>
+          )}
+          
+          {hasError && !isLoading && (
+            <View style={styles.errorOverlay}>
+              <Ionicons name="alert-circle-outline" size={40} color="#FF4040" />
+              <Text style={styles.errorText}>视频加载失败</Text>
+            </View>
+          )}
+          
+          {isPaused && (
+            <View style={styles.playButtonOverlay}>
+              <Ionicons name="play" size={50} color="rgba(255, 255, 255, 0.8)" />
+            </View>
+          )}
+        </Pressable>
       ) : (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#FF4040" />
@@ -695,7 +747,8 @@ const styles = StyleSheet.create({
   },
   videoTouchable: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 5,
+    zIndex: 30, // 进一步提高zIndex值
+    backgroundColor: 'transparent', // 确保背景透明
   },
   playButtonOverlay: {
     ...StyleSheet.absoluteFillObject,
