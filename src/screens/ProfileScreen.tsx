@@ -82,10 +82,7 @@ const ProfileScreen = () => {
           onError={(e) => {
             console.error('头像加载失败:', avatarUri, e.nativeEvent.error);
             setAvatarLoadError(true);
-            // 尝试直接通过相对路径加载（测试用）
-            if (user.avatar.startsWith('/public/')) {
-              console.log('尝试通过不同方式加载头像...');
-            }
+            // 不显示加载失败提示，只是静默处理
           }}
         />
       );

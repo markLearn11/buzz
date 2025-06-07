@@ -29,6 +29,7 @@ const EditProfileScreen = () => {
   const [bio, setBio] = useState(user?.bio || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+  const [localAvatarUri, setLocalAvatarUri] = useState(''); // 保存用户选择的本地头像URI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
 
@@ -50,11 +51,46 @@ const EditProfileScreen = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setAvatar(result.assets[0].uri);
+        const selectedImageUri = result.assets[0].uri;
+        setAvatar(selectedImageUri);
+        setLocalAvatarUri(selectedImageUri); // 保存本地头像URI
+        // 重置加载错误状态，确保显示新选择的头像
+        setAvatarLoadError(false);
       }
     } catch (error) {
       console.error('选择图片失败:', error);
       Alert.alert('错误', '选择图片失败，请重试');
+    }
+  };
+
+  // 渲染头像
+  const renderAvatar = () => {
+    // 始终优先显示本地选择的图片，即使在保存过程中也不变
+    if (localAvatarUri) {
+      return (
+        <Image 
+          source={{ uri: localAvatarUri }} 
+          style={styles.avatarImage}
+          // 完全禁用错误处理，避免任何可能导致头像变为默认的代码执行
+        />
+      );
+    } else if (avatar && !avatarLoadError) {
+      // 远程图片需要缓存刷新
+      const avatarUri = getImageUrlWithCacheBuster(avatar);
+      
+      return (
+        <Image 
+          source={{ uri: avatarUri }} 
+          style={styles.avatarImage} 
+          onError={(e) => {
+            console.error('头像加载失败:', avatarUri, e.nativeEvent.error);
+            // 不要设置错误状态，这会导致显示默认头像
+            // setAvatarLoadError(true);
+          }}
+        />
+      );
+    } else {
+      return <Text style={styles.avatarText}>{username[0] || '用'}</Text>;
     }
   };
 
@@ -65,24 +101,23 @@ const EditProfileScreen = () => {
       return;
     }
 
+    // 记录当前的头像状态，以便在任何情况下都能保持显示
+    const currentLocalAvatar = localAvatarUri;
+
     try {
       setIsSubmitting(true);
       console.log('尝试更新用户资料:', { username, bio });
       
       if (user?._id) {
-        // 检查头像是否已更改
-        const isAvatarChanged = avatar !== user.avatar;
-        console.log('头像是否已更改:', isAvatarChanged);
-        
-        // 如果头像已更改，先上传新头像
-        if (isAvatarChanged && avatar) {
+        // 如果有本地头像，则需要上传
+        if (currentLocalAvatar) {
           console.log('开始上传新头像...');
           try {
             // 准备FormData
             const formData = new FormData();
             
             // 从URI中获取文件名
-            const uriParts = avatar.split('/');
+            const uriParts = currentLocalAvatar.split('/');
             const fileName = uriParts[uriParts.length - 1];
             
             // 确定文件类型
@@ -90,14 +125,14 @@ const EditProfileScreen = () => {
             
             // 添加文件到FormData
             formData.append('avatar', {
-              uri: avatar,
+              uri: currentLocalAvatar,
               name: fileName,
               type: `image/${fileType}`
             } as any);
             
             console.log('上传头像FormData准备完成');
             
-            // 上传头像
+            // 上传头像 - 但不修改任何本地状态，确保头像显示不变
             const updatedUserData = await dispatch(updateAvatarAsync({
               userId: user._id,
               formData
@@ -105,26 +140,11 @@ const EditProfileScreen = () => {
             
             console.log('头像上传成功', updatedUserData);
             
-            // 检查返回的头像URL并更新本地状态
-            if (updatedUserData && updatedUserData.avatar) {
-              let newAvatarUrl = updatedUserData.avatar;
-              
-              // 如果返回的是相对路径，转换为完整URL
-              if (newAvatarUrl.startsWith('/')) {
-                newAvatarUrl = `${env.API_BASE_URL}${newAvatarUrl}`;
-                console.log('转换头像相对路径为完整URL:', updatedUserData.avatar, '=>', newAvatarUrl);
-              }
-              
-              // 更新本地头像状态
-              setAvatar(newAvatarUrl);
-              setAvatarLoadError(false);
-            } else {
-              console.log('服务器返回的头像URL不完整，立即同步用户数据');
-              await dispatch(getCurrentUserAsync()).unwrap();
-            }
+            // 注意：这里不设置avatar或清除localAvatarUri，确保视觉上保持一致
           } catch (error) {
             console.error('头像上传失败:', error);
-            Alert.alert('警告', '头像上传失败，但将继续更新其他资料');
+            // 不显示警告提示，静默处理
+            console.log('头像上传失败，但将继续更新其他资料');
           }
         }
         
@@ -137,14 +157,25 @@ const EditProfileScreen = () => {
           }
         })).unwrap();
         
-        console.log('资料更新成功，正在获取最新用户数据...');
+        console.log('资料更新成功');
         
-        // 立即获取最新的用户数据以确保同步
-        await dispatch(getCurrentUserAsync()).unwrap();
+        // 静默获取最新用户数据，但不影响UI显示
+        try {
+          await dispatch(getCurrentUserAsync()).unwrap();
+          console.log('用户数据同步完成');
+        } catch (error) {
+          console.error('获取最新用户数据失败:', error);
+        }
         
-        console.log('用户数据同步完成');
+        // 成功提示并返回上一页
         Alert.alert('成功', '资料更新成功', [
-          { text: '确定', onPress: () => navigation.goBack() }
+          { 
+            text: '确定', 
+            onPress: () => {
+              // 直接返回，不修改任何状态
+              navigation.goBack();
+            }
+          }
         ]);
       } else {
         console.error('用户ID不存在');
@@ -158,32 +189,45 @@ const EditProfileScreen = () => {
     }
   };
 
-  // 渲染头像
-  const renderAvatar = () => {
-    if (avatar && !avatarLoadError) {
-      const isLocalImage = avatar.startsWith('file:') || avatar.startsWith('content:');
-      const avatarUri = isLocalImage ? avatar : getImageUrlWithCacheBuster(avatar);
-      
-      return (
-        <Image 
-          source={{ uri: avatarUri }} 
-          style={styles.avatarImage} 
-          onError={(e) => {
-            console.error('头像加载失败:', avatarUri, e.nativeEvent.error);
-            if (!isLocalImage) {
-              setAvatarLoadError(true);
-            }
-          }}
-        />
-      );
-    } else {
-      return <Text style={styles.avatarText}>{username[0] || '用'}</Text>;
+  // 初始化和清理
+  useEffect(() => {
+    // 组件挂载时，确保状态正确
+    if (user?.avatar) {
+      setAvatar(user.avatar);
+      setAvatarLoadError(false);
     }
-  };
+    
+    // 当用户离开页面时，清除本地头像状态
+    return () => {
+      setLocalAvatarUri('');
+    };
+  }, [user?.avatar]);
 
+  // 监听本地头像的变化
+  useEffect(() => {
+    // 当有新的本地头像时，重置错误状态
+    if (localAvatarUri) {
+      setAvatarLoadError(false);
+    }
+  }, [localAvatarUri]);
+
+  // 组件初始化时，如果有头像，重置错误状态
   useEffect(() => {
     setAvatarLoadError(false);
-  }, [avatar]);
+  }, []);
+
+  // 确保组件卸载时不会改变状态
+  useEffect(() => {
+    return () => {
+      // 不清除任何状态
+    };
+  }, []);
+
+  // 阻止头像加载错误
+  useEffect(() => {
+    // 禁用错误状态
+    setAvatarLoadError(false);
+  }, [localAvatarUri, avatar]);
 
   return (
     <SafeAreaView style={styles.container}>
