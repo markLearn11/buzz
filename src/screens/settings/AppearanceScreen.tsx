@@ -38,97 +38,98 @@ const AppearanceScreen = () => {
   const theme = useTheme();
 
   // 加载外观设置
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        // 先尝试从API获取
-        try {
-          const response = await fetch(`${API_BASE_URL}/settings`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
-            }
-          });
+  // useEffect(() => {
+  //   console.log(isDarkMode,'isDarkMode__')
+  //   const loadSettings = async () => {
+  //     try {
+  //       // 先尝试从API获取
+  //       try {
+  //         const response = await fetch(`${API_BASE_URL}/settings`, {
+  //           method: 'GET',
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+  //           }
+  //         });
 
-          if (response.ok) {
-            const data = await response.json();
-            const apiSettings = data.appearance;
-            if (apiSettings) {
-              dispatch(setDarkMode(apiSettings.darkMode));
-              dispatch(setFollowSystem(apiSettings.followSystem));
+  //         if (response.ok) {
+  //           const data = await response.json();
+  //           const apiSettings = data.appearance;
+  //           if (apiSettings) {
+  //             dispatch(setDarkMode(apiSettings.darkMode));
+  //             dispatch(setFollowSystem(apiSettings.followSystem));
               
-              // 确保textSize是合法的值
-              const size = apiSettings.textSize as TextSize;
-              if (size === 'small' || size === 'medium' || size === 'large') {
-                dispatch(setTextSize(size));
-              } else {
-                dispatch(setTextSize('medium'));
-              }
+  //             // 确保textSize是合法的值
+  //             const size = apiSettings.textSize as TextSize;
+  //             if (size === 'small' || size === 'medium' || size === 'large') {
+  //               dispatch(setTextSize(size));
+  //             } else {
+  //               dispatch(setTextSize('medium'));
+  //             }
               
-              // 同步到本地存储
-              await AsyncStorage.setItem('appearanceSettings', JSON.stringify(apiSettings));
-              return;
-            }
-          }
-        } catch (apiError) {
-          console.error(t('settings.loadAppearanceSettingsFailed'), apiError);
-          // 失败后继续尝试从本地存储加载
-        }
+  //             // 同步到本地存储
+  //             await AsyncStorage.setItem('appearanceSettings', JSON.stringify(apiSettings));
+  //             return;
+  //           }
+  //         }
+  //       } catch (apiError) {
+  //         console.error(t('settings.loadAppearanceSettingsFailed'), apiError);
+  //         // 失败后继续尝试从本地存储加载
+  //       }
 
-        // 从本地存储加载
-        const savedSettings = await AsyncStorage.getItem('appearanceSettings');
-        if (savedSettings) {
-          const savedSettingsObj = JSON.parse(savedSettings);
-          dispatch(setDarkMode(savedSettingsObj.darkMode));
-          dispatch(setFollowSystem(savedSettingsObj.followSystem));
+  //       // 从本地存储加载
+  //       const savedSettings = await AsyncStorage.getItem('appearanceSettings');
+  //       if (savedSettings) {
+  //         const savedSettingsObj = JSON.parse(savedSettings);
+  //         dispatch(setDarkMode(savedSettingsObj.darkMode));
+  //         dispatch(setFollowSystem(savedSettingsObj.followSystem));
           
-          // 确保textSize是合法的值
-          const size = savedSettingsObj.textSize as TextSize;
-          if (size === 'small' || size === 'medium' || size === 'large') {
-            dispatch(setTextSize(size));
-          } else {
-            dispatch(setTextSize('medium'));
-          }
-        } else {
-          // 如果没有本地设置，使用默认值
-          const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
-          const savedFollowSystem = await AsyncStorage.getItem('followSystem');
-          const savedTextSize = await AsyncStorage.getItem('textSize');
+  //         // 确保textSize是合法的值
+  //         const size = savedSettingsObj.textSize as TextSize;
+  //         if (size === 'small' || size === 'medium' || size === 'large') {
+  //           dispatch(setTextSize(size));
+  //         } else {
+  //           dispatch(setTextSize('medium'));
+  //         }
+  //       } else {
+  //         // 如果没有本地设置，使用默认值
+  //         const savedDarkMode = await AsyncStorage.getItem('isDarkMode');
+  //         const savedFollowSystem = await AsyncStorage.getItem('followSystem');
+  //         const savedTextSize = await AsyncStorage.getItem('textSize');
           
-          // 从旧的存储格式迁移
-          if (savedDarkMode !== null || savedFollowSystem !== null || savedTextSize !== null) {
-            // 确保textSize是合法的值
-            let size: TextSize = 'medium';
-            if (savedTextSize === 'small' || savedTextSize === 'medium' || savedTextSize === 'large') {
-              size = savedTextSize as TextSize;
-            }
+  //         // 从旧的存储格式迁移
+  //         if (savedDarkMode !== null || savedFollowSystem !== null || savedTextSize !== null) {
+  //           // 确保textSize是合法的值
+  //           let size: TextSize = 'medium';
+  //           if (savedTextSize === 'small' || savedTextSize === 'medium' || savedTextSize === 'large') {
+  //             size = savedTextSize as TextSize;
+  //           }
             
-            const migratedSettings = {
-              darkMode: savedDarkMode === 'true',
-              followSystem: savedFollowSystem === 'true',
-              textSize: size
-            };
+  //           const migratedSettings = {
+  //             darkMode: savedDarkMode === 'true',
+  //             followSystem: savedFollowSystem === 'true',
+  //             textSize: size
+  //           };
             
-            dispatch(setDarkMode(migratedSettings.darkMode));
-            dispatch(setFollowSystem(migratedSettings.followSystem));
-            dispatch(setTextSize(migratedSettings.textSize));
-            await AsyncStorage.setItem('appearanceSettings', JSON.stringify(migratedSettings));
-          }
-        }
-      } catch (error) {
-        console.error(t('settings.loadAppearanceSettingsFailed'), error);
-      } finally {
-        dispatch(saveThemeSettings({
-          isDarkMode,
-          followSystem,
-          textSize
-        }));
-      }
-    };
+  //           dispatch(setDarkMode(migratedSettings.darkMode));
+  //           dispatch(setFollowSystem(migratedSettings.followSystem));
+  //           dispatch(setTextSize(migratedSettings.textSize));
+  //           await AsyncStorage.setItem('appearanceSettings', JSON.stringify(migratedSettings));
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error(t('settings.loadAppearanceSettingsFailed'), error);
+  //     } finally {
+  //       dispatch(saveThemeSettings({
+  //         isDarkMode,
+  //         followSystem,
+  //         textSize
+  //       }));
+  //     }
+  //   };
     
-    loadSettings();
-  }, [t, dispatch]);
+  //   loadSettings();
+  // }, [t, dispatch]);
 
   // 保存外观设置
   const saveSettings = async (newSettings: AppearanceSettings) => {
