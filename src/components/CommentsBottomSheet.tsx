@@ -52,9 +52,12 @@ interface CommentsBottomSheetProps {
   onLoadMore: () => void;
   onSubmitComment: (data: {
     text?: string;
-    image?: any;
-    emojiType?: 'static' | 'animated' | null;
-    emojiId?: string;
+    images?: any[];
+    emojis?: {
+      type: 'static' | 'animated' | null;
+      id: string | null;
+      position: number | null; // 在输入文本中的位置
+    }[];
   }) => Promise<void>;
   onLikeComment: (commentId: string, isLiked: boolean) => Promise<void>;
   localCommentLikes: {[commentId: string]: number};
@@ -82,14 +85,20 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<any>(null);
+  
+  // 修改状态，支持多个图片和表情
+  const [selectedImages, setSelectedImages] = useState<any[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAnimatedEmojiPicker, setShowAnimatedEmojiPicker] = useState(false);
-  const [selectedEmoji, setSelectedEmoji] = useState<{type: 'static' | 'animated' | null, id: string | null}>({
-    type: null,
-    id: null
-  });
+  const [selectedEmojis, setSelectedEmojis] = useState<{
+    type: 'static' | 'animated' | null;
+    id: string | null;
+    position: number | null; // 在输入文本中的位置
+  }[]>([]);
+  const [selectionStart, setSelectionStart] = useState<number>(0); // 新增：跟踪光标位置
+  
   const insets = useSafeAreaInsets();
+  const inputRef = useRef<TextInput>(null);
   
   // 监听键盘显示和隐藏
   useEffect(() => {
@@ -181,18 +190,26 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
       
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: false, // 关闭编辑功能以支持多选
         aspect: [4, 3],
         quality: 0.8,
+        allowsMultipleSelection: true, // 启用多选
+        selectionLimit: 9 // 最多选择9张图片
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0]);
+        // 合并新选择的图片和已有的图片，但要确保总数不超过9张
+        const newImages = [...selectedImages, ...result.assets];
+        if (newImages.length > 9) {
+          alert("最多只能选择9张图片");
+          setSelectedImages(newImages.slice(0, 9));
+        } else {
+          setSelectedImages(newImages);
+        }
+        
         // 选择图片后关闭表情选择器
         setShowEmojiPicker(false);
         setShowAnimatedEmojiPicker(false);
-        // 清除已选表情
-        setSelectedEmoji({ type: null, id: null });
       }
     } catch (error) {
       console.error('选择图片失败:', error);
@@ -201,30 +218,58 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
   };
   
   // 处理移除已选图片
-  const handleRemoveImage = () => {
-    setSelectedImage(null);
+  const handleRemoveImage = (index: number) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    setSelectedImages(newImages);
   };
   
   // 处理表情选择
   const handleEmojiSelect = (emoji: string) => {
-    setSelectedEmoji({
-      type: 'static',
-      id: emoji
-    });
+    // 使用跟踪的光标位置而不是ref的props.selection
+    const currentText = commentText;
+    const newText = 
+      currentText.substring(0, selectionStart) + 
+      emoji + 
+      currentText.substring(selectionStart);
+    
+    setCommentText(newText);
+    
+    // 关闭表情选择器
     setShowEmojiPicker(false);
-    // 选择表情后清除已选图片
-    setSelectedImage(null);
+    
+    // 设置光标位置到表情之后
+    setTimeout(() => {
+      const newPosition = selectionStart + emoji.length;
+      setSelectionStart(newPosition);
+      inputRef.current?.focus();
+    }, 100);
   };
   
   // 处理动态表情包选择
   const handleAnimatedEmojiSelect = (emojiId: string) => {
-    setSelectedEmoji({
-      type: 'animated',
-      id: emojiId
+    // 创建一个包含选中动态表情的临时数组
+    const emojiToSend = [{
+      type: 'animated' as const,
+      id: emojiId,
+      position: null
+    }];
+    
+    // 直接提交评论，只发送动态表情，不包含图片和文本
+    onSubmitComment({
+      text: '',
+      images: [],
+      emojis: emojiToSend
+    }).then(() => {
+      // 不清空输入和已选择的图片，只关闭表情选择器
+      setShowEmojiPicker(false);
+      setShowAnimatedEmojiPicker(false);
+      
+      // 收起键盘
+      Keyboard.dismiss();
+    }).catch((error) => {
+      console.error('发送动态表情失败:', error);
+      alert('发送动态表情失败，请重试');
     });
-    setShowAnimatedEmojiPicker(false);
-    // 选择表情后清除已选图片
-    setSelectedImage(null);
   };
   
   // 处理切换表情选择器
@@ -251,25 +296,24 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
   
   // 更新提交评论函数
   const handleSubmitComment = async () => {
-    // 验证是否有内容可提交（文本、图片或表情）
-    if ((!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting) {
+    // 验证是否有内容可提交（文本或图片）
+    if ((!commentText.trim() && selectedImages.length === 0) || isSubmitting) {
       return;
     }
     
     try {
       setIsSubmitting(true);
       
+      // 收集所有要提交的内容
       await onSubmitComment({
         text: commentText.trim(),
-        image: selectedImage,
-        emojiType: selectedEmoji.type,
-        emojiId: selectedEmoji.id
+        images: selectedImages,
+        emojis: [] // 动态表情现在通过handleAnimatedEmojiSelect直接发送
       });
       
       // 清空输入
       setCommentText('');
-      setSelectedImage(null);
-      setSelectedEmoji({ type: null, id: null });
+      setSelectedImages([]);
       
       // 关闭所有选择器
       setShowEmojiPicker(false);
@@ -561,52 +605,31 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
           style={styles.keyboardAvoidingView}
         >
           {/* 已选图片预览 */}
-          {selectedImage && (
+          {selectedImages.length > 0 && (
             <View style={styles.selectedImageContainer}>
-              <Image 
-                source={{ uri: selectedImage.uri }} 
-                style={styles.selectedImagePreview} 
-                resizeMode="cover"
-              />
-              <TouchableOpacity 
-                style={styles.removeImageButton}
-                onPress={handleRemoveImage}
+              <ScrollView 
+                horizontal={false} 
+                showsVerticalScrollIndicator={true}
+                style={{width: '100%'}}
               >
-                <Ionicons name="close-circle" size={22} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          {/* 已选表情预览 */}
-          {selectedEmoji.type === 'static' && selectedEmoji.id && (
-            <View style={styles.selectedEmojiContainer}>
-              <Text style={styles.selectedEmoji}>{selectedEmoji.id}</Text>
-              <TouchableOpacity 
-                style={styles.removeEmojiButton}
-                onPress={() => setSelectedEmoji({ type: null, id: null })}
-              >
-                <Ionicons name="close-circle" size={22} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          {/* 已选动态表情包预览 */}
-          {selectedEmoji.type === 'animated' && selectedEmoji.id && (
-            <View style={styles.selectedEmojiContainer}>
-              <Image 
-                source={{ 
-                  uri: ANIMATED_EMOJIS.find(emoji => emoji.id === selectedEmoji.id)?.url || 
-                       'https://media.giphy.com/media/VgqtLbNtJEWtVlfMVv/giphy.gif' // 默认动图
-                }} 
-                style={styles.selectedAnimatedEmoji} 
-                resizeMode="contain"
-              />
-              <TouchableOpacity 
-                style={styles.removeEmojiButton}
-                onPress={() => setSelectedEmoji({ type: null, id: null })}
-              >
-                <Ionicons name="close-circle" size={22} color="#FFF" />
-              </TouchableOpacity>
+                <View style={{flexDirection: 'row', flexWrap: 'wrap', width: '100%'}}>
+                  {selectedImages.map((image, index) => (
+                    <View key={`image-${index}`} style={styles.selectedImagePreviewContainer}>
+                      <Image 
+                        source={{ uri: image.uri }} 
+                        style={styles.selectedImagePreview} 
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity 
+                        style={styles.removeImageButton}
+                        onPress={() => handleRemoveImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={22} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           )}
           
@@ -649,11 +672,16 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
               
               {/* 文本输入框 */}
               <TextInput
+                ref={inputRef}
                 style={styles.input}
                 placeholder="添加评论..."
                 placeholderTextColor="#999"
                 value={commentText}
                 onChangeText={setCommentText}
+                onSelectionChange={(event) => {
+                  // 跟踪光标位置
+                  setSelectionStart(event.nativeEvent.selection.start);
+                }}
                 multiline={true}
                 maxLength={200}
               />
@@ -662,13 +690,13 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
               <TouchableOpacity 
                 style={[
                   styles.sendButton,
-                  (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting 
+                  (!commentText.trim() && selectedImages.length === 0) || isSubmitting 
                     ? styles.disabledSendButton 
                     : null
                 ]}
                 onPress={handleSubmitComment}
                 disabled={
-                  (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || 
+                  (!commentText.trim() && selectedImages.length === 0) || 
                   isSubmitting
                 }
               >
@@ -676,7 +704,7 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
                   name="send" 
                   size={20} 
                   color={
-                    (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting
+                    (!commentText.trim() && selectedImages.length === 0) || isSubmitting
                       ? "#666" 
                       : "#FF4040"
                   } 
@@ -951,40 +979,29 @@ const styles = StyleSheet.create({
   },
   selectedImageContainer: {
     width: '100%',
-    height: 100,
-    padding: 8,
+    padding: 4,
     backgroundColor: '#1A1A1A',
+    position: 'relative',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    maxHeight: 300, // 限制最大高度
+    overflow: 'hidden', // 修正为React Native支持的值
+  },
+  selectedImagePreviewContainer: {
+    width: '33.33%', // 每行3张图片
+    height: 100,
+    padding: 4,
     position: 'relative',
   },
   selectedImagePreview: {
     height: '100%',
-    width: 120,
+    width: '100%',
     borderRadius: 8,
   },
   removeImageButton: {
     position: 'absolute',
     top: 4,
     right: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-  },
-  selectedEmojiContainer: {
-    width: '100%',
-    padding: 8,
-    backgroundColor: '#1A1A1A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  selectedEmoji: {
-    fontSize: 36,
-  },
-  selectedAnimatedEmoji: {
-    width: 80,
-    height: 80,
-  },
-  removeEmojiButton: {
-    marginLeft: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 12,
   },

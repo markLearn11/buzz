@@ -162,7 +162,7 @@ const checkVideoUrl = async (url: string): Promise<boolean> => {
   return true;
 };
 
-const VideoItem = ({ item, isActive }) => {
+const VideoItem: React.FC<{ item: any; isActive: boolean }> = ({ item, isActive }) => {
   const videoRef = useRef(null);
   const dispatch = useAppDispatch();
   const navigation = useNavigation();
@@ -292,14 +292,46 @@ const VideoItem = ({ item, isActive }) => {
   };
   
   // 提交评论处理函数
-  const handleSubmitComment = async (text: string) => {
-    if (!text.trim() || isSubmitting) return;
+  const handleSubmitComment = async (data: {
+    text?: string;
+    images?: any[];
+    emojis?: {
+      type: 'static' | 'animated' | null;
+      id: string | null;
+      position: number | null;
+    }[];
+  }) => {
+    if ((!data.text || !data.text.trim()) && (!data.images || data.images.length === 0) && (!data.emojis || data.emojis.length === 0) || isSubmitting) {
+      return;
+    }
     
     try {
       setIsSubmitting(true);
+
+      // 处理图片数据
+      let processedImages = data.images;
+      if (data.images && data.images.length > 0) {
+        // 转换 Expo ImagePicker 的结果为适合 API 的格式
+        processedImages = data.images.map(img => {
+          // 创建一个文件对象
+          const filenameParts = img.uri.split('/');
+          const filename = filenameParts[filenameParts.length - 1];
+          
+          // 在 React Native 中，我们不能直接创建 File 对象
+          // 但可以创建一个包含必要属性的对象以便被 FormData 处理
+          return {
+            uri: img.uri,
+            name: filename,
+            type: `image/${filename.split('.').pop()}` // 推断 MIME 类型
+          };
+        });
+      }
+      
       await dispatch(addCommentAsync({ 
         videoId: item.id, 
-        content: text.trim(),
+        text: data.text,
+        images: processedImages,
+        emojis: data.emojis
       })).unwrap();
       
       // 更新评论计数

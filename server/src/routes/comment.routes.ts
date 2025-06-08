@@ -1,3 +1,11 @@
+/*
+ * @Author: jihao00122 52628008+jihao00122@users.noreply.github.com
+ * @Date: 2025-06-06 14:54:10
+ * @LastEditors: jihao00122 52628008+jihao00122@users.noreply.github.com
+ * @LastEditTime: 2025-06-08 18:30:31
+ * @FilePath: /buzz/server/src/routes/comment.routes.ts
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -12,6 +20,9 @@ import {
   checkCommentLikeStatus
 } from '../controllers/comment.controller';
 import { protect } from '../middlewares/auth.middleware';
+
+// 导入自定义的 RequestWithFiles 接口，确保与 multer 类型兼容
+import { RequestWithFiles } from '../types/request';
 
 const router = express.Router();
 
@@ -49,8 +60,23 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 限制5MB
 });
 
-// 创建评论 - 添加图片上传支持
-router.post('/', protect, upload.single('image'), createComment);
+// 创建评论 - 添加多图片上传支持
+const uploadImages = upload.fields([
+  { name: 'image0', maxCount: 1 },
+  { name: 'image1', maxCount: 1 },
+  { name: 'image2', maxCount: 1 },
+  { name: 'image3', maxCount: 1 },
+  { name: 'image4', maxCount: 1 },
+  { name: 'image5', maxCount: 1 },
+  { name: 'image6', maxCount: 1 },
+  { name: 'image7', maxCount: 1 },
+  { name: 'image8', maxCount: 1 },
+  { name: 'image9', maxCount: 1 },
+]);
+
+// 创建评论 - 支持多图片上传
+// 使用类型断言解决类型不兼容问题
+router.post('/', protect, uploadImages, createComment as express.RequestHandler);
 
 // 获取视频评论
 router.get('/video/:videoId', getVideoComments);

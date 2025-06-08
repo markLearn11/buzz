@@ -62,36 +62,35 @@ export const addCommentAsync = createAsyncThunk(
   'comments/addComment',
   async ({ 
     videoId, 
-    content,
-    image,
-    emojiType,
-    emojiId 
+    text,
+    images,
+    emojis
   }: { 
     videoId: string, 
-    content?: string,
-    image?: File,
-    emojiType?: 'static' | 'animated' | null,
-    emojiId?: string
+    text?: string,
+    images?: any[],
+    emojis?: {
+      type: 'static' | 'animated' | null;
+      id: string | null;
+      position: number | null;
+    }[];
   }, { rejectWithValue }) => {
     try {
       let response;
       
-      // 如果有图片，使用带图片的评论API
-      if (image) {
-        response = await commentService.addCommentWithImage({ 
+      // 如果有图片或表情，使用带媒体的评论API
+      if ((images && images.length > 0) || (emojis && emojis.length > 0)) {
+        response = await commentService.addCommentWithMedia({ 
           videoId, 
-          content, 
-          image,
-          emojiType,
-          emojiId
+          content: text,
+          images,
+          emojis
         });
       } else {
         // 否则使用普通评论API
         response = await commentService.addComment({ 
           videoId, 
-          content,
-          emojiType,
-          emojiId 
+          content: text
         });
       }
       

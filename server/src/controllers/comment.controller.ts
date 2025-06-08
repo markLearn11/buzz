@@ -4,16 +4,13 @@ import Video from '../models/video.model';
 import { AppError } from '../middlewares/error.middleware';
 import { uploadToOSS } from '../services/oss.service';
 import path from 'path';
-
-// 扩展Request接口，添加file属性
-interface RequestWithFile extends Request {
-  file?: Express.Multer.File;
-}
+import { RequestWithFiles } from '../types/request';
 
 // 创建评论
-export const createComment = async (req: RequestWithFile, res: Response) => {
+export const createComment = async (req: RequestWithFiles, res: Response) => {
   try {
-    const { videoId, content, parentCommentId, emojiType, emojiId } = req.body;
+    const { videoId, content, parentCommentId, emojisData } = req.body;
+    const imageCount = req.body.imageCount ? parseInt(req.body.imageCount) : 0;
     
     // 检查视频是否存在
     const video = await Video.findById(videoId);
@@ -22,7 +19,10 @@ export const createComment = async (req: RequestWithFile, res: Response) => {
     }
     
     // 验证至少有一种内容（文本、图片或表情）
-    if (!content && !req.file && !(emojiType && emojiId)) {
+    const hasEmojis = emojisData && JSON.parse(emojisData).length > 0;
+    const hasImages = imageCount > 0 || req.file;
+    
+    if (!content && !hasImages && !hasEmojis) {
       throw new AppError('评论内容不能为空', 400);
     }
     
@@ -33,7 +33,23 @@ export const createComment = async (req: RequestWithFile, res: Response) => {
       content: content || ''
     };
     
-    // 如果上传了图片，处理图片上传
+    // 处理表情数据
+    if (emojisData) {
+      try {
+        const emojis = JSON.parse(emojisData);
+        if (emojis.length > 0) {
+          // 存储第一个表情作为主表情，其余记录在额外字段中
+          const firstEmoji = emojis[0];
+          commentData.emojiType = firstEmoji.type;
+          commentData.emojiId = firstEmoji.id;
+          commentData.emojisData = emojisData; // 存储全部表情数据
+        }
+      } catch (e) {
+        console.error('解析表情数据失败:', e);
+      }
+    }
+    
+    // 处理单张图片上传
     if (req.file) {
       const fileExt = path.extname(req.file.originalname);
       const fileName = `${req.user._id}_${Date.now()}${fileExt}`;
@@ -43,10 +59,30 @@ export const createComment = async (req: RequestWithFile, res: Response) => {
       commentData.imageUrl = imageUrl;
     }
     
-    // 处理表情
-    if (emojiType && emojiId) {
-      commentData.emojiType = emojiType;
-      commentData.emojiId = emojiId;
+    // 处理多图片上传
+    if (req.files && imageCount > 0) {
+      const imageUrls = [];
+      
+      for (let i = 0; i < imageCount; i++) {
+        const imageField = `image${i}`;
+        if (req.files[imageField] && req.files[imageField][0]) {
+          const file = req.files[imageField][0];
+          const fileExt = path.extname(file.originalname);
+          const fileName = `${req.user._id}_${Date.now()}_${i}${fileExt}`;
+          const ossPath = `comments/${fileName}`;
+          
+          const imageUrl = await uploadToOSS(file.path, ossPath);
+          imageUrls.push(imageUrl);
+        }
+      }
+      
+      // 将第一张图片作为主图片，其余图片存储在额外字段中
+      if (imageUrls.length > 0) {
+        commentData.imageUrl = imageUrls[0];
+        if (imageUrls.length > 1) {
+          commentData.imageUrls = JSON.stringify(imageUrls);
+        }
+      }
     }
     
     // 如果是回复评论，添加父评论ID

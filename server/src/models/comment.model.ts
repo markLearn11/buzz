@@ -4,9 +4,11 @@ export interface IComment extends Document {
   user: mongoose.Types.ObjectId;
   video: mongoose.Types.ObjectId;
   content: string;
-  imageUrl?: string;
-  emojiType?: string;
-  emojiId?: string;
+  imageUrl?: string;        // 主图片URL
+  imageUrls?: string;       // 新增：多图片URLs JSON字符串
+  emojiType?: string;       // 主表情类型
+  emojiId?: string;         // 主表情ID
+  emojisData?: string;      // 新增：所有表情数据 JSON字符串
   likes: mongoose.Types.ObjectId[];
   replies: mongoose.Types.ObjectId[];
   parentComment?: mongoose.Types.ObjectId;
@@ -31,18 +33,24 @@ const CommentSchema: Schema = new Schema(
       trim: true,
       maxlength: 300
     },
-    imageUrl: {
+    imageUrl: {             // 主图片URL
       type: String,
       trim: true
     },
-    emojiType: {
+    imageUrls: {            // 新增：多图片URLs JSON字符串
+      type: String
+    },
+    emojiType: {            // 主表情类型
       type: String,
       enum: ['static', 'animated', null],
       default: null
     },
-    emojiId: {
+    emojiId: {              // 主表情ID
       type: String,
       trim: true
+    },
+    emojisData: {           // 新增：所有表情数据 JSON字符串
+      type: String
     },
     likes: [{
       type: Schema.Types.ObjectId,

@@ -39,13 +39,16 @@ export const addComment = async (data: { videoId: string; content?: string; pare
 };
 
 // 添加带图片的评论
-export const addCommentWithImage = async (data: { 
+export const addCommentWithMedia = async (data: { 
   videoId: string; 
   content?: string; 
   parentId?: string; 
-  image: File;
-  emojiType?: string;
-  emojiId?: string;
+  images?: any[];
+  emojis?: {
+    type: 'static' | 'animated' | null;
+    id: string | null;
+    position: number | null;
+  }[];
 }) => {
   try {
     const formData = new FormData();
@@ -59,12 +62,19 @@ export const addCommentWithImage = async (data: {
       formData.append('parentCommentId', data.parentId);
     }
     
-    if (data.emojiType && data.emojiId) {
-      formData.append('emojiType', data.emojiType);
-      formData.append('emojiId', data.emojiId);
+    // 处理表情数据
+    if (data.emojis && data.emojis.length > 0) {
+      formData.append('emojisData', JSON.stringify(data.emojis));
     }
     
-    formData.append('image', data.image);
+    // 处理多图片上传
+    if (data.images && data.images.length > 0) {
+      data.images.forEach((image, index) => {
+        formData.append(`image${index}`, image);
+      });
+      
+      formData.append('imageCount', String(data.images.length));
+    }
     
     const response = await api.post('/comments', formData, {
       headers: {
@@ -73,7 +83,7 @@ export const addCommentWithImage = async (data: {
     });
     return response.data;
   } catch (error) {
-    console.error('添加带图片的评论失败:', error);
+    console.error('添加带媒体的评论失败:', error);
     throw error;
   }
 };
