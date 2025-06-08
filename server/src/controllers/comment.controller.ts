@@ -2,11 +2,18 @@ import { Request, Response } from 'express';
 import Comment from '../models/comment.model';
 import Video from '../models/video.model';
 import { AppError } from '../middlewares/error.middleware';
+import { uploadToOSS } from '../services/oss.service';
+import path from 'path';
+
+// 扩展Request接口，添加file属性
+interface RequestWithFile extends Request {
+  file?: Express.Multer.File;
+}
 
 // 创建评论
-export const createComment = async (req: Request, res: Response) => {
+export const createComment = async (req: RequestWithFile, res: Response) => {
   try {
-    const { videoId, content, parentCommentId } = req.body;
+    const { videoId, content, parentCommentId, emojiType, emojiId } = req.body;
     
     // 检查视频是否存在
     const video = await Video.findById(videoId);
@@ -14,12 +21,33 @@ export const createComment = async (req: Request, res: Response) => {
       throw new AppError('视频不存在', 404);
     }
     
+    // 验证至少有一种内容（文本、图片或表情）
+    if (!content && !req.file && !(emojiType && emojiId)) {
+      throw new AppError('评论内容不能为空', 400);
+    }
+    
     // 创建评论数据
     const commentData: any = {
       user: req.user._id,
       video: videoId,
-      content
+      content: content || ''
     };
+    
+    // 如果上传了图片，处理图片上传
+    if (req.file) {
+      const fileExt = path.extname(req.file.originalname);
+      const fileName = `${req.user._id}_${Date.now()}${fileExt}`;
+      const ossPath = `comments/${fileName}`;
+      
+      const imageUrl = await uploadToOSS(req.file.path, ossPath);
+      commentData.imageUrl = imageUrl;
+    }
+    
+    // 处理表情
+    if (emojiType && emojiId) {
+      commentData.emojiType = emojiType;
+      commentData.emojiId = emojiId;
+    }
     
     // 如果是回复评论，添加父评论ID
     if (parentCommentId) {

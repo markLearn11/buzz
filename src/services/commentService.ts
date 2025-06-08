@@ -27,13 +27,53 @@ export const fetchCommentReplies = async (commentId: string, page = 1, limit = 1
   }
 };
 
-// 添加评论
-export const addComment = async (data: { videoId: string; content: string; parentId?: string }) => {
+// 添加文本评论
+export const addComment = async (data: { videoId: string; content?: string; parentId?: string; emojiType?: string; emojiId?: string }) => {
   try {
     const response = await api.post('/comments', data);
     return response.data;
   } catch (error) {
     console.error('添加评论失败:', error);
+    throw error;
+  }
+};
+
+// 添加带图片的评论
+export const addCommentWithImage = async (data: { 
+  videoId: string; 
+  content?: string; 
+  parentId?: string; 
+  image: File;
+  emojiType?: string;
+  emojiId?: string;
+}) => {
+  try {
+    const formData = new FormData();
+    formData.append('videoId', data.videoId);
+    
+    if (data.content) {
+      formData.append('content', data.content);
+    }
+    
+    if (data.parentId) {
+      formData.append('parentCommentId', data.parentId);
+    }
+    
+    if (data.emojiType && data.emojiId) {
+      formData.append('emojiType', data.emojiType);
+      formData.append('emojiId', data.emojiId);
+    }
+    
+    formData.append('image', data.image);
+    
+    const response = await api.post('/comments', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('添加带图片的评论失败:', error);
     throw error;
   }
 };

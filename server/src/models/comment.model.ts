@@ -4,6 +4,9 @@ export interface IComment extends Document {
   user: mongoose.Types.ObjectId;
   video: mongoose.Types.ObjectId;
   content: string;
+  imageUrl?: string;
+  emojiType?: string;
+  emojiId?: string;
   likes: mongoose.Types.ObjectId[];
   replies: mongoose.Types.ObjectId[];
   parentComment?: mongoose.Types.ObjectId;
@@ -25,9 +28,21 @@ const CommentSchema: Schema = new Schema(
     },
     content: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 300
+    },
+    imageUrl: {
+      type: String,
+      trim: true
+    },
+    emojiType: {
+      type: String,
+      enum: ['static', 'animated', null],
+      default: null
+    },
+    emojiId: {
+      type: String,
+      trim: true
     },
     likes: [{
       type: Schema.Types.ObjectId,

@@ -7,6 +7,9 @@ export interface Comment {
   username: string;
   avatar: string;
   content: string;
+  imageUrl?: string;        // 新增：评论图片URL
+  emojiType?: 'static' | 'animated' | null;  // 新增：表情类型
+  emojiId?: string;         // 新增：表情ID或引用
   likes: number;
   isLiked: boolean;
   createdAt: number;
@@ -20,6 +23,9 @@ export interface Reply {
   username: string;
   avatar: string;
   content: string;
+  imageUrl?: string;        // 新增：评论图片URL 
+  emojiType?: 'static' | 'animated' | null;  // 新增：表情类型
+  emojiId?: string;         // 新增：表情ID或引用 
   likes: number;
   isLiked: boolean;
   createdAt: number;
@@ -54,9 +60,41 @@ export const fetchVideoCommentsAsync = createAsyncThunk(
 
 export const addCommentAsync = createAsyncThunk(
   'comments/addComment',
-  async ({ videoId, content }: { videoId: string, content: string }, { rejectWithValue }) => {
+  async ({ 
+    videoId, 
+    content,
+    image,
+    emojiType,
+    emojiId 
+  }: { 
+    videoId: string, 
+    content?: string,
+    image?: File,
+    emojiType?: 'static' | 'animated' | null,
+    emojiId?: string
+  }, { rejectWithValue }) => {
     try {
-      const response = await commentService.addComment({ videoId, content });
+      let response;
+      
+      // 如果有图片，使用带图片的评论API
+      if (image) {
+        response = await commentService.addCommentWithImage({ 
+          videoId, 
+          content, 
+          image,
+          emojiType,
+          emojiId
+        });
+      } else {
+        // 否则使用普通评论API
+        response = await commentService.addComment({ 
+          videoId, 
+          content,
+          emojiType,
+          emojiId 
+        });
+      }
+      
       return response.comment;
     } catch (error: any) {
       return rejectWithValue(error.message || '添加评论失败');

@@ -13,12 +13,35 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
+  Modal,
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import BottomSheet from './BottomSheet';
 import { Comment as CommentType } from '../store/slices/commentsSlice';
 import { formatTime } from '../utils/timeUtils';
+
+// 模拟表情数据
+const STATIC_EMOJIS = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', 
+  '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+  '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+  '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥'
+];
+
+// 模拟动态表情包数据
+const ANIMATED_EMOJIS = [
+  { id: 'anim1', name: '开心', url: 'https://media.giphy.com/media/blSTtZehjAZ8I/giphy.gif' },
+  { id: 'anim2', name: '大笑', url: 'https://media.giphy.com/media/10UUe8ZsLnaqwo/giphy.gif' },
+  { id: 'anim3', name: '点赞', url: 'https://media.giphy.com/media/l4HohVwFLzHKcwa6A/giphy.gif' },
+  { id: 'anim4', name: '爱心', url: 'https://media.giphy.com/media/JTtdkQGZtPm9t3M68E/giphy.gif' },
+  { id: 'anim5', name: '哭泣', url: 'https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif' },
+  { id: 'anim6', name: '惊讶', url: 'https://media.giphy.com/media/3o7TKs8Sc4hf6slNPa/giphy.gif' },
+  { id: 'anim7', name: '愤怒', url: 'https://media.giphy.com/media/l1J9u3TZfpmeDLkD6/giphy.gif' },
+  { id: 'anim8', name: '无语', url: 'https://media.giphy.com/media/QUNJfft1y9rsYIVkbi/giphy.gif' },
+];
 
 interface CommentsBottomSheetProps {
   isVisible: boolean;
@@ -27,7 +50,12 @@ interface CommentsBottomSheetProps {
   isLoading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
-  onSubmitComment: (text: string) => Promise<void>;
+  onSubmitComment: (data: {
+    text?: string;
+    image?: any;
+    emojiType?: 'static' | 'animated' | null;
+    emojiId?: string;
+  }) => Promise<void>;
   onLikeComment: (commentId: string, isLiked: boolean) => Promise<void>;
   localCommentLikes: {[commentId: string]: number};
   localCommentIsLiked: {[commentId: string]: boolean};
@@ -54,6 +82,13 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAnimatedEmojiPicker, setShowAnimatedEmojiPicker] = useState(false);
+  const [selectedEmoji, setSelectedEmoji] = useState<{type: 'static' | 'animated' | null, id: string | null}>({
+    type: null,
+    id: null
+  });
   const insets = useSafeAreaInsets();
   
   // 监听键盘显示和隐藏
@@ -133,19 +168,118 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
     ]).start();
   };
   
-  // 处理评论提交
+  // 处理图片选择
+  const handleImagePick = async () => {
+    try {
+      // 请求媒体库权限
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        alert("需要相册访问权限才能选择图片");
+        return;
+      }
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0]);
+        // 选择图片后关闭表情选择器
+        setShowEmojiPicker(false);
+        setShowAnimatedEmojiPicker(false);
+        // 清除已选表情
+        setSelectedEmoji({ type: null, id: null });
+      }
+    } catch (error) {
+      console.error('选择图片失败:', error);
+      alert('选择图片失败，请重试');
+    }
+  };
+  
+  // 处理移除已选图片
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+  };
+  
+  // 处理表情选择
+  const handleEmojiSelect = (emoji: string) => {
+    setSelectedEmoji({
+      type: 'static',
+      id: emoji
+    });
+    setShowEmojiPicker(false);
+    // 选择表情后清除已选图片
+    setSelectedImage(null);
+  };
+  
+  // 处理动态表情包选择
+  const handleAnimatedEmojiSelect = (emojiId: string) => {
+    setSelectedEmoji({
+      type: 'animated',
+      id: emojiId
+    });
+    setShowAnimatedEmojiPicker(false);
+    // 选择表情后清除已选图片
+    setSelectedImage(null);
+  };
+  
+  // 处理切换表情选择器
+  const toggleEmojiPicker = () => {
+    // 如果动态表情包选择器已经打开，则关闭
+    if (showAnimatedEmojiPicker) {
+      setShowAnimatedEmojiPicker(false);
+    }
+    
+    setShowEmojiPicker(!showEmojiPicker);
+    Keyboard.dismiss(); // 关闭键盘
+  };
+  
+  // 处理切换动态表情包选择器
+  const toggleAnimatedEmojiPicker = () => {
+    // 如果普通表情选择器已经打开，则关闭
+    if (showEmojiPicker) {
+      setShowEmojiPicker(false);
+    }
+    
+    setShowAnimatedEmojiPicker(!showAnimatedEmojiPicker);
+    Keyboard.dismiss(); // 关闭键盘
+  };
+  
+  // 更新提交评论函数
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || isSubmitting) return;
+    // 验证是否有内容可提交（文本、图片或表情）
+    if ((!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting) {
+      return;
+    }
     
     try {
       setIsSubmitting(true);
-      await onSubmitComment(commentText);
+      
+      await onSubmitComment({
+        text: commentText.trim(),
+        image: selectedImage,
+        emojiType: selectedEmoji.type,
+        emojiId: selectedEmoji.id
+      });
+      
+      // 清空输入
       setCommentText('');
+      setSelectedImage(null);
+      setSelectedEmoji({ type: null, id: null });
+      
+      // 关闭所有选择器
+      setShowEmojiPicker(false);
+      setShowAnimatedEmojiPicker(false);
       
       // 收起键盘
       Keyboard.dismiss();
     } catch (error) {
-      console.error('评论提交失败:', error);
+      console.error('提交评论失败:', error);
+      alert('提交评论失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -168,6 +302,55 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
     }
   };
   
+  // 渲染评论内容
+  const renderCommentContent = (item: CommentType | any) => {
+    return (
+      <View>
+        {/* 文本内容 */}
+        {item.content ? (
+          <Text style={styles.commentText}>{item.content}</Text>
+        ) : null}
+        
+        {/* 图片内容 */}
+        {item.imageUrl ? (
+          <TouchableOpacity
+            style={styles.commentImageContainer}
+            onPress={() => {
+              // TODO: 实现图片预览功能
+            }}
+          >
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.commentImage}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        ) : null}
+        
+        {/* 静态表情 */}
+        {item.emojiType === 'static' && item.emojiId ? (
+          <Text style={styles.commentEmoji}>
+            {item.emojiId}
+          </Text>
+        ) : null}
+        
+        {/* 动态表情包 */}
+        {item.emojiType === 'animated' && item.emojiId ? (
+          <View style={styles.commentAnimatedEmojiContainer}>
+            <Image
+              source={{ 
+                uri: ANIMATED_EMOJIS.find(emoji => emoji.id === item.emojiId)?.url || 
+                     'https://media.giphy.com/media/VgqtLbNtJEWtVlfMVv/giphy.gif' // 默认动图
+              }}
+              style={styles.commentAnimatedEmoji}
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+  
   // 渲染评论项
   const renderComment = ({ item }: { item: CommentType }) => {
     // 获取本地点赞状态
@@ -184,7 +367,10 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
         <Image source={{ uri: item.avatar || 'https://via.placeholder.com/50' }} style={styles.commentAvatar} />
         <View style={styles.commentContent}>
           <Text style={styles.commentUsername}>{item.username}</Text>
-          <Text style={styles.commentText}>{item.content}</Text>
+          
+          {/* 使用渲染评论内容函数 */}
+          {renderCommentContent(item)}
+          
           <View style={styles.commentActions}>
             <Text style={styles.commentTime}>
               {formatTime(item.createdAt)}
@@ -217,29 +403,30 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
                 {likesCount}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.commentAction}>
-              <Text style={styles.actionText}>回复</Text>
-            </TouchableOpacity>
           </View>
           
+          {/* 回复内容 */}
           {item.replies && item.replies.length > 0 && (
             <View style={styles.repliesContainer}>
               {item.replies.map(reply => {
-                // 获取回复的本地点赞状态
-                const replyIsLiked = localCommentIsLiked[reply.id] !== undefined 
-                  ? localCommentIsLiked[reply.id] 
+                // 使用同样的逻辑获取回复的点赞状态
+                const replyIsLiked = localCommentIsLiked[reply.id] !== undefined
+                  ? localCommentIsLiked[reply.id]
                   : reply.isLiked;
-                  
+                
                 const replyLikesCount = localCommentLikes[reply.id] !== undefined
                   ? localCommentLikes[reply.id]
                   : reply.likes;
                 
                 return (
                   <View key={reply.id} style={styles.replyContainer}>
-                    <Image source={{ uri: reply.avatar || 'https://via.placeholder.com/40' }} style={styles.replyAvatar} />
+                    <Image source={{ uri: reply.avatar || 'https://via.placeholder.com/50' }} style={styles.replyAvatar} />
                     <View style={styles.replyContent}>
                       <Text style={styles.commentUsername}>{reply.username}</Text>
-                      <Text style={styles.commentText}>{reply.content}</Text>
+                      
+                      {/* 使用渲染评论内容函数 */}
+                      {renderCommentContent(reply)}
+                      
                       <View style={styles.commentActions}>
                         <Text style={styles.commentTime}>
                           {formatTime(reply.createdAt)}
@@ -373,11 +560,94 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
           style={styles.keyboardAvoidingView}
         >
+          {/* 已选图片预览 */}
+          {selectedImage && (
+            <View style={styles.selectedImageContainer}>
+              <Image 
+                source={{ uri: selectedImage.uri }} 
+                style={styles.selectedImagePreview} 
+                resizeMode="cover"
+              />
+              <TouchableOpacity 
+                style={styles.removeImageButton}
+                onPress={handleRemoveImage}
+              >
+                <Ionicons name="close-circle" size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* 已选表情预览 */}
+          {selectedEmoji.type === 'static' && selectedEmoji.id && (
+            <View style={styles.selectedEmojiContainer}>
+              <Text style={styles.selectedEmoji}>{selectedEmoji.id}</Text>
+              <TouchableOpacity 
+                style={styles.removeEmojiButton}
+                onPress={() => setSelectedEmoji({ type: null, id: null })}
+              >
+                <Ionicons name="close-circle" size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* 已选动态表情包预览 */}
+          {selectedEmoji.type === 'animated' && selectedEmoji.id && (
+            <View style={styles.selectedEmojiContainer}>
+              <Image 
+                source={{ 
+                  uri: ANIMATED_EMOJIS.find(emoji => emoji.id === selectedEmoji.id)?.url || 
+                       'https://media.giphy.com/media/VgqtLbNtJEWtVlfMVv/giphy.gif' // 默认动图
+                }} 
+                style={styles.selectedAnimatedEmoji} 
+                resizeMode="contain"
+              />
+              <TouchableOpacity 
+                style={styles.removeEmojiButton}
+                onPress={() => setSelectedEmoji({ type: null, id: null })}
+              >
+                <Ionicons name="close-circle" size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+          
           <View style={[
             styles.inputWrapper,
             { paddingBottom: isKeyboardVisible ? 5 : getBottomPadding() }
           ]}>
             <View style={styles.inputContainer}>
+              {/* 表情按钮 */}
+              <TouchableOpacity 
+                style={styles.inputActionButton}
+                onPress={toggleEmojiPicker}
+              >
+                <Ionicons 
+                  name="happy-outline" 
+                  size={24} 
+                  color={showEmojiPicker ? "#FF4040" : "#999"} 
+                />
+              </TouchableOpacity>
+              
+              {/* 动态表情包按钮 */}
+              <TouchableOpacity 
+                style={styles.inputActionButton}
+                onPress={toggleAnimatedEmojiPicker}
+              >
+                <MaterialIcons 
+                  name="gif" 
+                  size={24} 
+                  color={showAnimatedEmojiPicker ? "#FF4040" : "#999"} 
+                />
+              </TouchableOpacity>
+              
+              {/* 图片上传按钮 */}
+              <TouchableOpacity 
+                style={styles.inputActionButton}
+                onPress={handleImagePick}
+              >
+                <Ionicons name="image-outline" size={24} color="#999" />
+              </TouchableOpacity>
+              
+              {/* 文本输入框 */}
               <TextInput
                 style={styles.input}
                 placeholder="添加评论..."
@@ -387,21 +657,75 @@ const CommentsBottomSheet: React.FC<CommentsBottomSheetProps> = ({
                 multiline={true}
                 maxLength={200}
               />
+              
+              {/* 发送按钮 */}
               <TouchableOpacity 
                 style={[
                   styles.sendButton,
-                  (!commentText.trim() || isSubmitting) && styles.disabledSendButton
+                  (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting 
+                    ? styles.disabledSendButton 
+                    : null
                 ]}
                 onPress={handleSubmitComment}
-                disabled={isSubmitting || !commentText.trim()}
+                disabled={
+                  (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || 
+                  isSubmitting
+                }
               >
                 <Ionicons 
                   name="send" 
                   size={20} 
-                  color={isSubmitting || !commentText.trim() ? "#666" : "#FF4040"} 
+                  color={
+                    (!commentText.trim() && !selectedImage && selectedEmoji.type === null) || isSubmitting
+                      ? "#666" 
+                      : "#FF4040"
+                  } 
                 />
               </TouchableOpacity>
             </View>
+            
+            {/* 表情选择器 */}
+            {showEmojiPicker && (
+              <View style={styles.emojiPickerContainer}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={styles.emojiGrid}>
+                    {STATIC_EMOJIS.map((emoji, index) => (
+                      <TouchableOpacity
+                        key={`emoji-${index}`}
+                        style={styles.emojiItem}
+                        onPress={() => handleEmojiSelect(emoji)}
+                      >
+                        <Text style={styles.emoji}>{emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+            
+            {/* 动态表情包选择器 */}
+            {showAnimatedEmojiPicker && (
+              <View style={styles.emojiPickerContainer}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={styles.animatedEmojiGrid}>
+                    {ANIMATED_EMOJIS.map((emoji) => (
+                      <TouchableOpacity
+                        key={emoji.id}
+                        style={styles.animatedEmojiItem}
+                        onPress={() => handleAnimatedEmojiSelect(emoji.id)}
+                      >
+                        <Image 
+                          source={{ uri: emoji.url }} 
+                          style={styles.animatedEmojiPreview}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.animatedEmojiName}>{emoji.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -465,6 +789,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 18,
   },
+  commentImageContainer: {
+    marginBottom: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  commentImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+  },
+  commentEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  commentAnimatedEmojiContainer: {
+    width: 120,
+    height: 120,
+    marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  commentAnimatedEmoji: {
+    width: 120,
+    height: 120,
+  },
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -505,17 +854,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    width: '100%',
+    width: SCREEN_WIDTH,
+    backgroundColor: '#1A1A1A',
+    borderTopWidth: 0.5,
+    borderTopColor: '#333',
   },
   keyboardAvoidingView: {
     width: '100%',
   },
   inputWrapper: {
     width: '100%',
-    backgroundColor: '#1A1A1A',
-    borderTopWidth: 0.5,
-    borderTopColor: '#333',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   inputContainer: {
@@ -527,11 +876,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#2A2A2A',
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     color: '#FFFFFF',
     fontSize: 14,
     maxHeight: 80,
+  },
+  inputActionButton: {
+    marginRight: 8,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sendButton: {
     marginLeft: 10,
@@ -544,6 +900,93 @@ const styles = StyleSheet.create({
   },
   disabledSendButton: {
     opacity: 0.5,
+  },
+  emojiPickerContainer: {
+    marginTop: 8,
+    height: 150,
+    width: '100%',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    padding: 10,
+  },
+  emojiItem: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  emoji: {
+    fontSize: 24,
+  },
+  animatedEmojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    padding: 10,
+  },
+  animatedEmojiItem: {
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  animatedEmojiPreview: {
+    width: 50,
+    height: 50,
+  },
+  animatedEmojiName: {
+    fontSize: 10,
+    color: '#FFF',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  selectedImageContainer: {
+    width: '100%',
+    height: 100,
+    padding: 8,
+    backgroundColor: '#1A1A1A',
+    position: 'relative',
+  },
+  selectedImagePreview: {
+    height: '100%',
+    width: 120,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+  },
+  selectedEmojiContainer: {
+    width: '100%',
+    padding: 8,
+    backgroundColor: '#1A1A1A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  selectedEmoji: {
+    fontSize: 36,
+  },
+  selectedAnimatedEmoji: {
+    width: 80,
+    height: 80,
+  },
+  removeEmojiButton: {
+    marginLeft: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
   },
   loadingFooter: {
     padding: 16,
