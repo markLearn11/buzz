@@ -19,6 +19,7 @@ import {
   fetchConversationsSuccess,
   fetchConversationsFailure,
 } from '../store/slices/chatSlice';
+import { useTheme } from '../themes/ThemeProvider';
 
 // 模拟对话数据
 const DUMMY_CONVERSATIONS = [
@@ -104,6 +105,7 @@ const InboxScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { conversations, isLoading } = useSelector((state: RootState) => state.chat);
+  const { isDark, colors } = useTheme();
   
   useEffect(() => {
     // 在实际应用中，这里应该从API获取对话列表
@@ -145,7 +147,10 @@ const InboxScreen = () => {
     
     return (
       <TouchableOpacity
-        style={styles.conversationItem}
+        style={[
+          styles.conversationItem,
+          { borderBottomColor: isDark ? '#333' : colors.border }
+        ]}
         onPress={() => navigation.navigate('Chat', { 
           conversationId: item.id,
           username: otherUser.username,
@@ -169,12 +174,23 @@ const InboxScreen = () => {
         
         <View style={styles.messageContent}>
           <View style={styles.messageHeader}>
-            <Text style={styles.username}>{otherUser.username}</Text>
-            <Text style={styles.timestamp}>{formatTime(item.lastMessage.timestamp)}</Text>
+            <Text style={[styles.username, { color: isDark ? colors.text : colors.text }]}>
+              {otherUser.username}
+            </Text>
+            <Text style={[styles.timestamp, { color: isDark ? '#999' : colors.textTertiary }]}>
+              {formatTime(item.lastMessage.timestamp)}
+            </Text>
           </View>
           
           <Text 
-            style={[styles.messageText, !item.lastMessage.read && styles.unreadMessage]}
+            style={[
+              styles.messageText, 
+              { color: isDark ? '#ccc' : colors.textSecondary },
+              !item.lastMessage.read && [
+                styles.unreadMessage,
+                { color: isDark ? colors.text : colors.text }
+              ]
+            ]}
             numberOfLines={1}
           >
             {item.lastMessage.senderId === 'currentUser' ? '我: ' : ''}
@@ -187,26 +203,54 @@ const InboxScreen = () => {
   
   if (isLoading && conversations.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF4040" />
+      <View style={[
+        styles.loadingContainer,
+        { backgroundColor: isDark ? colors.primary : colors.white }
+      ]}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
   
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>消息</Text>
+    <SafeAreaView style={[
+      styles.container,
+      { backgroundColor: isDark ? colors.primary : colors.white }
+    ]}>
+      <View style={[
+        styles.header,
+        { 
+          borderBottomColor: isDark ? '#333' : colors.border,
+          backgroundColor: isDark ? colors.primary : colors.white
+        }
+      ]}>
+        <Text style={[
+          styles.headerTitle,
+          { color: isDark ? colors.text : colors.text }
+        ]}>消息</Text>
         <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="create-outline" size={24} color="#FF4040" />
+          <Ionicons name="create-outline" size={24} color={colors.accent} />
         </TouchableOpacity>
       </View>
       
       {conversations.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubble-ellipses-outline" size={60} color="#666" />
-          <Text style={styles.emptyText}>暂无消息</Text>
-          <Text style={styles.emptySubtext}>
+        <View style={[
+          styles.emptyContainer,
+          { backgroundColor: isDark ? colors.primary : colors.white }
+        ]}>
+          <Ionicons 
+            name="chatbubble-ellipses-outline" 
+            size={60} 
+            color={isDark ? '#666' : colors.textTertiary} 
+          />
+          <Text style={[
+            styles.emptyText,
+            { color: isDark ? colors.text : colors.text }
+          ]}>暂无消息</Text>
+          <Text style={[
+            styles.emptySubtext,
+            { color: isDark ? '#999' : colors.textTertiary }
+          ]}>
             你的私信和互动通知将会显示在这里
           </Text>
         </View>
@@ -225,13 +269,11 @@ const InboxScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -240,12 +282,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
   },
   headerButton: {
     padding: 8,
@@ -257,7 +297,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   avatarContainer: {
     position: 'relative',
@@ -307,18 +346,14 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
   },
   timestamp: {
     fontSize: 12,
-    color: '#999',
   },
   messageText: {
     fontSize: 14,
-    color: '#ccc',
   },
   unreadMessage: {
-    color: 'white',
     fontWeight: '500',
   },
   emptyContainer: {
@@ -328,14 +363,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 20,
     marginBottom: 8,
   },
   emptySubtext: {
-    color: '#999',
     textAlign: 'center',
     fontSize: 14,
   },

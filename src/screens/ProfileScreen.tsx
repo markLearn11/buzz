@@ -8,12 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { RootState, useAppDispatch } from '../store';
 import { updateProfileAsync, logoutAsync, getCurrentUserAsync } from '../store/slices/authSlice';
 import { getImageUrlWithCacheBuster } from '../services/api';
+import { useTheme } from '../themes/ThemeProvider';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation(); // 使用翻译hook
   const { user, loading } = useSelector((state: RootState) => state.auth);
+  const { isDark, colors } = useTheme();
   const [videos, setVideos] = useState([]);
   const [activeTab, setActiveTab] = useState('videos');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -183,9 +185,9 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('profile.myPage')}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#333' : colors.border }]}>
+        <Text style={[styles.headerTitle, { color: isDark ? 'white' : colors.text }]}>{t('profile.myPage')}</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
             style={styles.headerButton} 
@@ -193,70 +195,103 @@ const ProfileScreen = () => {
             disabled={isRefreshing}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator size="small" color={isDark ? "white" : colors.accent} />
             ) : (
-              <Ionicons name="refresh-outline" size={24} color="white" />
+              <Ionicons name="refresh-outline" size={24} color={isDark ? "white" : colors.text} />
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleLogout} disabled={isLoggingOut}>
             {isLoggingOut ? (
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator size="small" color={isDark ? "white" : colors.accent} />
             ) : (
-              <Ionicons name="log-out-outline" size={24} color="white" />
+              <Ionicons name="log-out-outline" size={24} color={isDark ? "white" : colors.text} />
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
-            <Ionicons name="settings-outline" size={24} color="white" />
+            <Ionicons name="settings-outline" size={24} color={isDark ? "white" : colors.text} />
           </TouchableOpacity>
         </View>
       </View>
       
-      <View style={styles.profileInfo}>
+      <View style={[styles.profileInfo, { borderBottomColor: isDark ? '#333' : colors.border }]}>
         <View style={styles.avatar}>
           {getAvatarContent()}
         </View>
-        <Text style={styles.username}>{user?.username || t('profile.loading')}</Text>
-        <Text style={styles.userId}>@{user?._id ? user._id.substring(0, 8) : 'user'}</Text>
+        <Text style={[styles.username, { color: isDark ? 'white' : colors.text }]}>
+          {user?.username || t('profile.loading')}
+        </Text>
+        <Text style={[styles.userId, { color: isDark ? '#ccc' : colors.textTertiary }]}>
+          @{user?._id ? user._id.substring(0, 8) : 'user'}
+        </Text>
         
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{user?.following?.length || 0}</Text>
-            <Text style={styles.statLabel}>{t('profile.following')}</Text>
+            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+              {user?.following?.length || 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
+              {t('profile.following')}
+            </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{user?.followers?.length || 0}</Text>
-            <Text style={styles.statLabel}>{t('profile.followers')}</Text>
+            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+              {user?.followers?.length || 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
+              {t('profile.followers')}
+            </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{0}</Text>
-            <Text style={styles.statLabel}>{t('profile.likes')}</Text>
+            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+              {0}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
+              {t('profile.likes')}
+            </Text>
           </View>
         </View>
         
-        <TouchableOpacity style={styles.editProfileButton} onPress={navigateToEditProfile}>
-          <Text style={styles.editProfileButtonText}>{t('profile.editProfile')}</Text>
+        <TouchableOpacity 
+          style={[styles.editProfileButton, { borderColor: isDark ? '#444' : colors.border }]} 
+          onPress={navigateToEditProfile}
+        >
+          <Text style={[styles.editProfileButtonText, { color: isDark ? 'white' : colors.text }]}>
+            {t('profile.editProfile')}
+          </Text>
         </TouchableOpacity>
       </View>
       
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { borderBottomColor: isDark ? '#333' : colors.border }]}>
         <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'videos' && styles.activeTabButton]}
+          style={[
+            styles.tabButton, 
+            activeTab === 'videos' && [
+              styles.activeTabButton,
+              { borderBottomColor: isDark ? 'white' : colors.text }
+            ]
+          ]}
           onPress={() => setActiveTab('videos')}
         >
           <Ionicons 
             name={activeTab === 'videos' ? 'grid' : 'grid-outline'} 
             size={20} 
-            color={activeTab === 'videos' ? 'white' : '#999'} 
+            color={activeTab === 'videos' ? (isDark ? 'white' : colors.text) : (isDark ? '#999' : colors.textTertiary)} 
           />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'liked' && styles.activeTabButton]}
+          style={[
+            styles.tabButton, 
+            activeTab === 'liked' && [
+              styles.activeTabButton,
+              { borderBottomColor: isDark ? 'white' : colors.text }
+            ]
+          ]}
           onPress={() => setActiveTab('liked')}
         >
           <Ionicons 
             name={activeTab === 'liked' ? 'heart' : 'heart-outline'} 
             size={20} 
-            color={activeTab === 'liked' ? 'white' : '#999'} 
+            color={activeTab === 'liked' ? (isDark ? 'white' : colors.text) : (isDark ? '#999' : colors.textTertiary)} 
           />
         </TouchableOpacity>
       </View>
@@ -271,7 +306,6 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -283,7 +317,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -297,7 +330,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   avatar: {
     width: 80,
@@ -321,12 +353,10 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
     marginBottom: 8,
   },
   userId: {
     fontSize: 14,
-    color: '#ccc',
     marginBottom: 16,
   },
   statsContainer: {
@@ -340,27 +370,22 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
   },
   statLabel: {
     fontSize: 12,
-    color: '#ccc',
   },
   editProfileButton: {
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#444',
     borderRadius: 20,
   },
   editProfileButtonText: {
-    color: 'white',
     fontWeight: '500',
   },
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   tabButton: {
     flex: 1,
@@ -370,7 +395,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: 'white',
   },
   contentContainer: {
     flex: 1,

@@ -20,12 +20,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { getImageUrlWithCacheBuster } from '../services/api';
 import { API_BASE_URL } from '../config/env';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../themes/ThemeProvider';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { user, loading } = useSelector((state: RootState) => state.auth);
   const { t } = useTranslation();
+  const { isDark, colors } = useTheme();
   
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -233,75 +235,101 @@ const EditProfileScreen = () => {
   }, [localAvatarUri, avatar]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#333' : colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={isDark ? 'white' : colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('profile.editProfile')}</Text>
-        <TouchableOpacity 
-          style={styles.saveButton} 
-          onPress={handleSave}
-          disabled={isSubmitting}
-        >
+        <Text style={[styles.headerTitle, { color: isDark ? 'white' : colors.text }]}>
+          {t('profile.editProfile')}
+        </Text>
+        <TouchableOpacity onPress={handleSave} disabled={isSubmitting}>
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="white" />
+            <ActivityIndicator size="small" color={colors.accent} />
           ) : (
-            <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+            <Text style={styles.saveButton}>{t('common.save')}</Text>
           )}
         </TouchableOpacity>
       </View>
-
-      <ScrollView style={styles.content}>
+      
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             {renderAvatar()}
-            <TouchableOpacity style={styles.avatarEditButton} onPress={pickImage}>
-              <View style={styles.avatarEditIconContainer}>
-                <Ionicons name="camera" size={20} color="white" />
-              </View>
-            </TouchableOpacity>
           </View>
-          <Text style={styles.changePhotoText}>{t('profile.changePhoto')}</Text>
+          <TouchableOpacity onPress={pickImage}>
+            <Text style={styles.changePhotoText}>{t('profile.changePhoto')}</Text>
+          </TouchableOpacity>
         </View>
-
+        
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('profile.username')}</Text>
-          <TextInput
-            style={styles.input}
+          <Text style={[styles.label, { color: isDark ? 'white' : colors.text }]}>
+            {t('profile.username')}
+          </Text>
+          <TextInput 
+            style={[
+              styles.input, 
+              { 
+                backgroundColor: isDark ? '#222' : colors.surfaceVariant,
+                color: isDark ? 'white' : colors.text
+              }
+            ]}
             value={username}
             onChangeText={setUsername}
             placeholder={t('profile.enterUsername')}
-            placeholderTextColor="#666"
+            placeholderTextColor={isDark ? '#666' : colors.textTertiary}
           />
         </View>
-
+        
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('profile.bio')}</Text>
-          <TextInput
-            style={[styles.input, styles.bioInput]}
+          <Text style={[styles.label, { color: isDark ? 'white' : colors.text }]}>
+            {t('profile.bio')}
+          </Text>
+          <TextInput 
+            style={[
+              styles.input, 
+              styles.bioInput, 
+              { 
+                backgroundColor: isDark ? '#222' : colors.surfaceVariant,
+                color: isDark ? 'white' : colors.text
+              }
+            ]}
             value={bio}
-            onChangeText={setBio}
+            onChangeText={(text) => {
+              if (text.length <= 100) {
+                setBio(text);
+              }
+            }}
             placeholder={t('profile.introduceYourself')}
-            placeholderTextColor="#666"
+            placeholderTextColor={isDark ? '#666' : colors.textTertiary}
             multiline
             maxLength={100}
           />
-          <Text style={styles.characterCount}>{bio.length}/{t('profile.maxLength')}</Text>
+          <Text style={[styles.characterCount, { color: isDark ? '#666' : colors.textTertiary }]}>
+            {bio.length}/100
+          </Text>
         </View>
-
+        
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('profile.email')}</Text>
-          <TextInput
-            style={styles.input}
+          <Text style={[styles.label, { color: isDark ? 'white' : colors.text }]}>
+            {t('profile.email')}
+          </Text>
+          <TextInput 
+            style={[
+              styles.input, 
+              { 
+                backgroundColor: isDark ? '#222' : colors.surfaceVariant,
+                color: isDark ? '#999' : colors.textSecondary
+              }
+            ]}
             value={email}
-            onChangeText={setEmail}
+            editable={false}
             placeholder={t('profile.enterEmail')}
-            placeholderTextColor="#666"
-            keyboardType="email-address"
-            editable={false} // 邮箱通常不允许直接修改
+            placeholderTextColor={isDark ? '#666' : colors.textTertiary}
           />
-          <Text style={styles.inputNote}>{t('profile.emailNote')}</Text>
+          <Text style={[styles.inputNote, { color: isDark ? '#666' : colors.textTertiary }]}>
+            {t('profile.emailNote')}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -311,7 +339,6 @@ const EditProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -320,63 +347,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
   },
   saveButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  saveButtonText: {
     color: '#FF4040',
     fontSize: 16,
     fontWeight: 'bold',
   },
   content: {
     flex: 1,
-    padding: 16,
+  },
+  contentContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: 30,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#333',
+    backgroundColor: '#FF4040',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    overflow: 'hidden',
   },
   avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     color: 'white',
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: 'bold',
-  },
-  avatarEditButton: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-  },
-  avatarEditIconContainer: {
-    backgroundColor: '#FF4040',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'black',
   },
   changePhotoText: {
     color: '#FF4040',
@@ -387,15 +395,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   label: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#222',
     borderRadius: 8,
     padding: 12,
-    color: 'white',
     fontSize: 16,
   },
   bioInput: {
@@ -403,13 +408,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   characterCount: {
-    color: '#666',
     fontSize: 12,
     textAlign: 'right',
     marginTop: 4,
   },
   inputNote: {
-    color: '#666',
     fontSize: 12,
     marginTop: 4,
   },

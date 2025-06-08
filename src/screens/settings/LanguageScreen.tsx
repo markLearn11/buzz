@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../config/env';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
+import { useTheme } from '../../themes/ThemeProvider';
+import SettingsScreenBase from '../../components/SettingsScreenBase';
 
 // 语言选项
 const languages = [
@@ -25,6 +27,7 @@ const LanguageScreen = () => {
   const [currentLanguage, setCurrentLanguage] = useState('zh');
   const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation(); // 使用翻译hook
+  const { isDark, colors } = useTheme();
 
   // 加载语言设置
   useEffect(() => {
@@ -121,100 +124,87 @@ const LanguageScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('settings.language')}</Text>
-          <View style={{ width: 24 }} />
-        </View>
+      <SettingsScreenBase title={t('settings.language')}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF4040" />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+            {t('common.loading')}
+          </Text>
         </View>
-      </SafeAreaView>
+      </SettingsScreenBase>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.language')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
+    <SettingsScreenBase title={t('settings.language')}>
       <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.selectLanguage')}</Text>
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.surfaceVariant,
+            borderColor: isDark ? '#222' : colors.border
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border
+            }
+          ]}>
+            {t('settings.selectLanguage')}
+          </Text>
           
           {languages.map((language) => (
             <TouchableOpacity 
               key={language.code}
               style={[
                 styles.languageItem,
-                currentLanguage === language.code && styles.selectedLanguageItem
+                { borderBottomColor: isDark ? '#222' : colors.border },
+                currentLanguage === language.code && [
+                  styles.selectedLanguageItem,
+                  { backgroundColor: isDark ? '#1e1e1e' : colors.secondary }
+                ]
               ]}
               onPress={() => selectLanguage(language.code)}
             >
               <View style={styles.languageInfo}>
                 <Text style={styles.languageFlag}>{language.flag}</Text>
-                <Text style={styles.languageName}>{t(`settings.languageOptions.${language.code}`)}</Text>
+                <Text style={[styles.languageName, { color: isDark ? 'white' : colors.text }]}>
+                  {t(`settings.languageOptions.${language.code}`)}
+                </Text>
               </View>
               {currentLanguage === language.code && (
-                <Ionicons name="checkmark" size={24} color="#FF4040" />
+                <Ionicons name="checkmark" size={24} color={colors.accent} />
               )}
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.tip}>
+        <Text style={[styles.tip, { color: isDark ? '#999' : colors.textTertiary }]}>
           {t('settings.languageTip')}
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </SettingsScreenBase>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
   content: {
     flex: 1,
     padding: 15,
   },
   section: {
     marginBottom: 20,
-    backgroundColor: '#111',
     borderRadius: 10,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#ccc',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   languageItem: {
     flexDirection: 'row',
@@ -222,10 +212,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   selectedLanguageItem: {
-    backgroundColor: '#1e1e1e',
   },
   languageInfo: {
     flexDirection: 'row',
@@ -237,7 +225,6 @@ const styles = StyleSheet.create({
   },
   languageName: {
     fontSize: 16,
-    color: 'white',
   },
   loadingContainer: {
     flex: 1,
@@ -245,12 +232,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#ccc',
     fontSize: 16,
+    marginTop: 10,
   },
   tip: {
     fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 30,
