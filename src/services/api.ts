@@ -1,10 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { env } from '../config/env';
+import { API_BASE_URL } from '../config/env';
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: env.API_BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 30000, // 增加超时时间到30秒
   headers: {
     'Content-Type': 'application/json',
@@ -22,10 +22,10 @@ export const getImageUrlWithCacheBuster = (url: string | null | undefined): stri
     // 注意：API_BASE_URL 的末尾可能已经有 /api，所以对于 /public 路径需要特殊处理
     if (url.startsWith('/public/')) {
       // 对于 /public 路径，需要去掉 API_BASE_URL 中的 /api 部分
-      const baseUrlWithoutApi = env.API_BASE_URL.replace(/\/api$/, '');
+      const baseUrlWithoutApi = API_BASE_URL.replace(/\/api$/, '');
       fullUrl = `${baseUrlWithoutApi}${url}`;
     } else {
-      fullUrl = `${env.API_BASE_URL}${url}`;
+      fullUrl = `${API_BASE_URL}${url}`;
     }
     console.log('转换相对路径为完整URL:', url, '=>', fullUrl);
   }
@@ -76,7 +76,7 @@ api.interceptors.response.use(
     if (!error.response) {
       console.error('网络错误: 无法连接到服务器');
       // 检查API_BASE_URL是否正确
-      console.error('当前API地址:', env.API_BASE_URL);
+      console.error('当前API地址:', API_BASE_URL);
       console.error('请确保服务器正在运行，并且可以通过此地址访问');
       error.message = '网络错误: 无法连接到服务器，请检查您的网络连接和服务器状态';
       return Promise.reject(error);
