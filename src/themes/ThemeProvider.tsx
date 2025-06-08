@@ -1,7 +1,15 @@
+/*
+ * @Author: jihao00122 52628008+jihao00122@users.noreply.github.com
+ * @Date: 2025-06-09 00:07:13
+ * @LastEditors: jihao00122 52628008+jihao00122@users.noreply.github.com
+ * @LastEditTime: 2025-06-09 00:08:54
+ * @FilePath: /buzz/src/themes/ThemeProvider.tsx
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../store';
-import { setDarkMode, initializeTheme } from '../store/slices/themeSlice';
+import { setDarkMode, initializeTheme, ThemeState } from '../store/slices/themeSlice';
 import { ThemeColors, ThemeMode, getTheme, getFontSizes, TextSize } from './index';
 
 // 创建主题上下文
@@ -24,7 +32,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 // 主题提供者组件
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const dispatch = useAppDispatch();
-  const { isDarkMode, followSystem, textSize, isLoading } = useAppSelector((state) => state.theme);
+  const { isDarkMode, followSystem, textSize, isLoading } = useAppSelector((state) => state.theme as ThemeState);
   const systemColorScheme = useColorScheme(); // 获取系统颜色方案
   // 添加主题过渡状态，用于缓存当前应用的主题
   const [currentThemeState, setCurrentThemeState] = useState(isDarkMode);
