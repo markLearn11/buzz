@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,9 +23,46 @@ const ProfileScreen = () => {
   const [lastUpdated, setLastUpdated] = useState(Date.now());
   const [avatarLoadError, setAvatarLoadError] = useState(false);
 
+  // 确保Tab栏样式正确 - 在组件挂载前执行
+  useLayoutEffect(() => {
+    const parent = navigation.getParent();
+    if (parent) {
+      // 设置正确的Tab栏样式
+      parent.setOptions({
+        tabBarStyle: { 
+          display: 'flex',
+          backgroundColor: isDark ? '#121212' : '#FFFFFF',
+          borderTopColor: isDark ? '#333333' : '#E0E0E0',
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.2 : 0.1,
+          shadowRadius: 3,
+        }
+      });
+    }
+  }, [navigation, isDark]);
+
   // 当页面获得焦点时刷新用户数据
   useFocusEffect(
     React.useCallback(() => {
+      // 首先确保Tab栏样式正确
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          tabBarStyle: { 
+            display: 'flex',
+            backgroundColor: isDark ? '#121212' : '#FFFFFF',
+            borderTopColor: isDark ? '#333333' : '#E0E0E0',
+            elevation: 8,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: isDark ? 0.2 : 0.1,
+            shadowRadius: 3,
+          }
+        });
+      }
+
       const refreshUserData = async () => {
         try {
           setIsRefreshing(true);
@@ -41,7 +78,7 @@ const ProfileScreen = () => {
       };
       
       refreshUserData();
-    }, [dispatch])
+    }, [dispatch, isDark, navigation])
   );
 
   // 手动刷新用户数据的函数
@@ -186,8 +223,10 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
-      <View style={[styles.header, { borderBottomColor: isDark ? '#333' : colors.border }]}>
-        <Text style={[styles.headerTitle, { color: isDark ? 'white' : colors.text }]}>{t('profile.myPage')}</Text>
+      <View style={[styles.header, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+        <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+          {t('profile.myPage')}
+        </Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
             style={styles.headerButton} 
@@ -195,29 +234,35 @@ const ProfileScreen = () => {
             disabled={isRefreshing}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={isDark ? "white" : colors.accent} />
+              <ActivityIndicator size="small" color={colors.accent} />
             ) : (
-              <Ionicons name="refresh-outline" size={24} color={isDark ? "white" : colors.text} />
+              <Ionicons name="refresh-outline" size={24} color={colors.accent} />
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleLogout} disabled={isLoggingOut}>
             {isLoggingOut ? (
-              <ActivityIndicator size="small" color={isDark ? "white" : colors.accent} />
+              <ActivityIndicator size="small" color={colors.accent} />
             ) : (
-              <Ionicons name="log-out-outline" size={24} color={isDark ? "white" : colors.text} />
+              <Ionicons name="log-out-outline" size={24} color={colors.accent} />
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={navigateToSettings}>
-            <Ionicons name="settings-outline" size={24} color={isDark ? "white" : colors.text} />
+            <Ionicons name="settings-outline" size={24} color={colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
       
-      <View style={[styles.profileInfo, { borderBottomColor: isDark ? '#333' : colors.border }]}>
+      <View style={[
+        styles.profileInfo, 
+        { 
+          backgroundColor: isDark ? colors.primary : colors.white,
+          borderBottomColor: isDark ? '#333' : colors.border 
+        }
+      ]}>
         <View style={styles.avatar}>
           {getAvatarContent()}
         </View>
-        <Text style={[styles.username, { color: isDark ? 'white' : colors.text }]}>
+        <Text style={[styles.username, { color: isDark ? colors.text : colors.text }]}>
           {user?.username || t('profile.loading')}
         </Text>
         <Text style={[styles.userId, { color: isDark ? '#ccc' : colors.textTertiary }]}>
@@ -226,7 +271,7 @@ const ProfileScreen = () => {
         
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+            <Text style={[styles.statValue, { color: isDark ? colors.text : colors.text }]}>
               {user?.following?.length || 0}
             </Text>
             <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
@@ -234,7 +279,7 @@ const ProfileScreen = () => {
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+            <Text style={[styles.statValue, { color: isDark ? colors.text : colors.text }]}>
               {user?.followers?.length || 0}
             </Text>
             <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
@@ -242,7 +287,7 @@ const ProfileScreen = () => {
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? 'white' : colors.text }]}>
+            <Text style={[styles.statValue, { color: isDark ? colors.text : colors.text }]}>
               {0}
             </Text>
             <Text style={[styles.statLabel, { color: isDark ? '#ccc' : colors.textTertiary }]}>
@@ -252,22 +297,31 @@ const ProfileScreen = () => {
         </View>
         
         <TouchableOpacity 
-          style={[styles.editProfileButton, { borderColor: isDark ? '#444' : colors.border }]} 
+          style={[
+            styles.editProfileButton, 
+            { borderColor: isDark ? '#444' : colors.border }
+          ]} 
           onPress={navigateToEditProfile}
         >
-          <Text style={[styles.editProfileButtonText, { color: isDark ? 'white' : colors.text }]}>
+          <Text style={[styles.editProfileButtonText, { color: isDark ? colors.text : colors.text }]}>
             {t('profile.editProfile')}
           </Text>
         </TouchableOpacity>
       </View>
       
-      <View style={[styles.tabContainer, { borderBottomColor: isDark ? '#333' : colors.border }]}>
+      <View style={[
+        styles.tabContainer, 
+        { 
+          backgroundColor: isDark ? colors.primary : colors.white,
+          borderBottomColor: isDark ? '#333' : colors.border 
+        }
+      ]}>
         <TouchableOpacity 
           style={[
             styles.tabButton, 
             activeTab === 'videos' && [
               styles.activeTabButton,
-              { borderBottomColor: isDark ? 'white' : colors.text }
+              { borderBottomColor: colors.accent }
             ]
           ]}
           onPress={() => setActiveTab('videos')}
@@ -275,7 +329,7 @@ const ProfileScreen = () => {
           <Ionicons 
             name={activeTab === 'videos' ? 'grid' : 'grid-outline'} 
             size={20} 
-            color={activeTab === 'videos' ? (isDark ? 'white' : colors.text) : (isDark ? '#999' : colors.textTertiary)} 
+            color={activeTab === 'videos' ? colors.accent : isDark ? '#999' : colors.textTertiary} 
           />
         </TouchableOpacity>
         <TouchableOpacity 
@@ -283,7 +337,7 @@ const ProfileScreen = () => {
             styles.tabButton, 
             activeTab === 'liked' && [
               styles.activeTabButton,
-              { borderBottomColor: isDark ? 'white' : colors.text }
+              { borderBottomColor: colors.accent }
             ]
           ]}
           onPress={() => setActiveTab('liked')}
@@ -291,12 +345,15 @@ const ProfileScreen = () => {
           <Ionicons 
             name={activeTab === 'liked' ? 'heart' : 'heart-outline'} 
             size={20} 
-            color={activeTab === 'liked' ? (isDark ? 'white' : colors.text) : (isDark ? '#999' : colors.textTertiary)} 
+            color={activeTab === 'liked' ? colors.accent : isDark ? '#999' : colors.textTertiary} 
           />
         </TouchableOpacity>
       </View>
       
-      <View style={styles.contentContainer}>
+      <View style={[
+        styles.contentContainer, 
+        { backgroundColor: isDark ? colors.primary : colors.white }
+      ]}>
         {renderTabContent()}
       </View>
     </SafeAreaView>
@@ -395,6 +452,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
+    borderBottomWidth: 2,
   },
   contentContainer: {
     flex: 1,

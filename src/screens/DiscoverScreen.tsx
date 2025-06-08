@@ -273,7 +273,7 @@ const DiscoverScreen = () => {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: isDark ? colors.text : colors.text }]}>
                 热门话题
-              </Text>
+      </Text>
               <TouchableOpacity onPress={() => console.log('查看更多话题')}>
                 <Text style={[styles.seeMoreText, { color: colors.accent }]}>查看更多</Text>
               </TouchableOpacity>
@@ -293,7 +293,7 @@ const DiscoverScreen = () => {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: isDark ? colors.text : colors.text }]}>
                 为您推荐
-              </Text>
+      </Text>
               <TouchableOpacity onPress={() => console.log('查看更多视频')}>
                 <Text style={[styles.seeMoreText, { color: colors.accent }]}>查看更多</Text>
               </TouchableOpacity>

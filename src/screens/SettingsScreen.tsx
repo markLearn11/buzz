@@ -3,16 +3,18 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 import { logoutAsync } from '../store/slices/authSlice';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../themes/ThemeProvider';
+import { CommonActions } from '@react-navigation/native';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { t } = useTranslation();
   const { isDark, colors } = useTheme();
+  const { isDarkMode } = useAppSelector(state => state.theme);
 
   const handleLogout = () => {
     Alert.alert(
@@ -37,6 +39,29 @@ const SettingsScreen = () => {
       ],
       { cancelable: false }
     );
+  };
+
+  const navigateToAppearance = () => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        tabBarStyle: {
+          display: 'flex',
+          backgroundColor: isDark ? '#121212' : '#FFFFFF',
+          borderTopColor: isDark ? '#333333' : '#E0E0E0',
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.2 : 0.1,
+          shadowRadius: 3,
+        }
+      });
+    }
+    
+    navigation.navigate('Appearance', {
+      preloadedTheme: isDarkMode ? 'dark' : 'light',
+      keepDarkTab: false
+    });
   };
 
   return (
@@ -114,7 +139,7 @@ const SettingsScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.menuItem, { borderBottomColor: isDark ? colors.border : colors.divider }]}
-            onPress={() => navigation.navigate('Appearance')}
+            onPress={navigateToAppearance}
           >
             <Ionicons name="eye-outline" size={22} color={isDark ? "#ccc" : "#666"} />
             <Text style={[styles.menuText, { color: isDark ? colors.text : colors.textSecondary }]}>

@@ -8,7 +8,6 @@ import { API_BASE_URL } from '../../config/env';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useTheme } from '../../themes/ThemeProvider';
-import SettingsScreenBase from '../../components/SettingsScreenBase';
 
 // 语言选项
 const languages = [
@@ -124,32 +123,63 @@ const LanguageScreen = () => {
 
   if (isLoading) {
     return (
-      <SettingsScreenBase title={t('settings.language')}>
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+        <View style={[
+          styles.header, 
+          { 
+            backgroundColor: isDark ? colors.primary : colors.white,
+            borderBottomColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+            {t('settings.language')}
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={[styles.loadingText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
             {t('common.loading')}
           </Text>
         </View>
-      </SettingsScreenBase>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SettingsScreenBase title={t('settings.language')}>
-      <ScrollView style={styles.content}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[
+        styles.header, 
+        { 
+          backgroundColor: isDark ? colors.primary : colors.white,
+          borderBottomColor: isDark ? '#222' : colors.border 
+        }
+      ]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+          {t('settings.language')}
+        </Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView style={[styles.content, { backgroundColor: isDark ? colors.primary : colors.white }]}>
         <View style={[
           styles.section, 
           { 
-            backgroundColor: isDark ? '#111' : colors.surfaceVariant,
-            borderColor: isDark ? '#222' : colors.border
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
           }
         ]}>
           <Text style={[
             styles.sectionTitle, 
             { 
               color: isDark ? '#ccc' : colors.textSecondary,
-              borderBottomColor: isDark ? '#222' : colors.border
+              borderBottomColor: isDark ? '#222' : colors.border 
             }
           ]}>
             {t('settings.selectLanguage')}
@@ -163,7 +193,7 @@ const LanguageScreen = () => {
                 { borderBottomColor: isDark ? '#222' : colors.border },
                 currentLanguage === language.code && [
                   styles.selectedLanguageItem,
-                  { backgroundColor: isDark ? '#1e1e1e' : colors.secondary }
+                  { backgroundColor: isDark ? '#1e1e1e' : colors.surfaceVariant }
                 ]
               ]}
               onPress={() => selectLanguage(language.code)}
@@ -185,11 +215,26 @@ const LanguageScreen = () => {
           {t('settings.languageTip')}
         </Text>
       </ScrollView>
-    </SettingsScreenBase>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   content: {
     flex: 1,
     padding: 15,
@@ -198,7 +243,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 10,
     overflow: 'hidden',
-    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: 16,
@@ -214,6 +258,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   selectedLanguageItem: {
+    // backgroundColor set dynamically
   },
   languageInfo: {
     flexDirection: 'row',
@@ -233,7 +278,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    marginTop: 10,
   },
   tip: {
     fontSize: 14,

@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../config/env';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../themes/ThemeProvider';
 
 interface StorageInfo {
   cacheSize: string;
@@ -18,13 +19,16 @@ const StorageScreen = () => {
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
-  const [storageInfo, setStorageInfo] = useState<StorageInfo>({
-    cacheSize: '0 MB',
-    documentSize: '0 MB',
-    mediaSize: '0 MB',
-    totalSize: '0 MB'
-  });
   const { t } = useTranslation();
+  const { isDark, colors } = useTheme();
+  
+  // 初始化状态时使用t函数获取单位
+  const [storageInfo, setStorageInfo] = useState<StorageInfo>({
+    cacheSize: `0 ${t('settings.sizeUnit')}`,
+    documentSize: `0 ${t('settings.sizeUnit')}`,
+    mediaSize: `0 ${t('settings.sizeUnit')}`,
+    totalSize: `0 ${t('settings.sizeUnit')}`
+  });
 
   // 加载存储信息
   useEffect(() => {
@@ -58,12 +62,13 @@ const StorageScreen = () => {
         if (savedInfo) {
           setStorageInfo(JSON.parse(savedInfo));
         } else {
-          // 模拟默认数据
+          // 模拟默认数据，使用t函数翻译单位
+          const sizeUnit = t('settings.sizeUnit');
           const mockInfo = {
-            cacheSize: '32.5 MB',
-            documentSize: '15.2 MB',
-            mediaSize: '34.8 MB',
-            totalSize: '82.5 MB'
+            cacheSize: `32.5 ${sizeUnit}`,
+            documentSize: `15.2 ${sizeUnit}`,
+            mediaSize: `34.8 ${sizeUnit}`,
+            totalSize: `82.5 ${sizeUnit}`
           };
           setStorageInfo(mockInfo);
           await AsyncStorage.setItem('storageInfo', JSON.stringify(mockInfo));
@@ -107,14 +112,14 @@ const StorageScreen = () => {
                   // 更新存储信息
                   const updatedInfo = {
                     ...storageInfo,
-                    cacheSize: '0 MB',
+                    cacheSize: `0 ${t('settings.sizeUnit')}`,
                     totalSize: calculateTotalSize('0', storageInfo.documentSize, storageInfo.mediaSize)
                   };
                   
                   setStorageInfo(updatedInfo);
                   await AsyncStorage.setItem('storageInfo', JSON.stringify(updatedInfo));
                   
-                  Alert.alert(t('common.success'), t('settings.cacheCleared', { size: result.clearedSize || '0 MB' }));
+                  Alert.alert(t('common.success'), t('settings.cacheCleared', { size: result.clearedSize || `0 ${t('settings.sizeUnit')}` }));
                 } else {
                   throw new Error(t('settings.apiRequestFailed'));
                 }
@@ -126,14 +131,14 @@ const StorageScreen = () => {
                 
                 const updatedInfo = {
                   ...storageInfo,
-                  cacheSize: '0 MB',
+                  cacheSize: `0 ${t('settings.sizeUnit')}`,
                   totalSize: calculateTotalSize('0', storageInfo.documentSize, storageInfo.mediaSize)
                 };
                 
                 setStorageInfo(updatedInfo);
                 await AsyncStorage.setItem('storageInfo', JSON.stringify(updatedInfo));
                 
-                Alert.alert(t('common.success'), t('settings.cacheCleared', { size: '0 MB' }));
+                Alert.alert(t('common.success'), t('settings.cacheCleared', { size: `0 ${t('settings.sizeUnit')}` }));
               }
             } catch (error) {
               console.error(t('settings.clearCacheFailed'), error);
@@ -166,11 +171,12 @@ const StorageScreen = () => {
               // 模拟清除所有数据
               await new Promise(resolve => setTimeout(resolve, 2000));
               
+              const sizeUnit = t('settings.sizeUnit');
               const updatedInfo = {
-                cacheSize: '0 MB',
-                documentSize: '0 MB',
-                mediaSize: '0 MB',
-                totalSize: '0 MB'
+                cacheSize: `0 ${sizeUnit}`,
+                documentSize: `0 ${sizeUnit}`,
+                mediaSize: `0 ${sizeUnit}`,
+                totalSize: `0 ${sizeUnit}`
               };
               
               setStorageInfo(updatedInfo);
@@ -189,147 +195,207 @@ const StorageScreen = () => {
     );
   };
 
-  // 计算总大小
+  // 计算总大小 - 修复国际化问题
   const calculateTotalSize = (cacheSize: string, documentSize: string, mediaSize: string) => {
     // 简化处理，实际应用中应该正确解析单位并计算
     const cache = parseFloat(cacheSize.split(' ')[0]) || 0;
     const docs = parseFloat(documentSize.split(' ')[0]) || 0;
     const media = parseFloat(mediaSize.split(' ')[0]) || 0;
     
-    return `${(cache + docs + media).toFixed(1)} MB`;
+    // 使用 t 函数获取翻译后的单位
+    return `${(cache + docs + media).toFixed(1)} ${t('settings.sizeUnit')}`;
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+        <View style={[
+          styles.header, 
+          { 
+            backgroundColor: isDark ? colors.primary : colors.white,
+            borderBottomColor: isDark ? '#333' : colors.border 
+          }
+        ]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('settings.storage')}</Text>
+          <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+            {t('settings.storage')}
+          </Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF4040" />
-          <Text style={styles.loadingText}>{t('settings.calculatingStorage')}</Text>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+            {t('common.loading')}
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[
+        styles.header, 
+        { 
+          backgroundColor: isDark ? colors.primary : colors.white,
+          borderBottomColor: isDark ? '#333' : colors.border 
+        }
+      ]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.storage')}</Text>
+        <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+          {t('settings.storage')}
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.storageOverview}>
-          <Text style={styles.totalStorageText}>{t('settings.totalStorage')}</Text>
-          <Text style={styles.totalStorageValue}>{storageInfo.totalSize}</Text>
-          <View style={styles.storageBar}>
+      <ScrollView style={[styles.content, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+        <View style={[
+          styles.storageOverview, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#333' : colors.border 
+          }
+        ]}>
+          <Text style={[styles.overviewTitle, { color: isDark ? '#999' : colors.textSecondary }]}>
+            {t('settings.storageUsage')}
+          </Text>
+          <Text style={[styles.totalSize, { color: isDark ? colors.text : colors.text }]}>
+            {storageInfo.totalSize}
+          </Text>
+          
+          <View style={[
+            styles.storageBar, 
+            { backgroundColor: isDark ? '#222' : '#e0e0e0' }
+          ]}>
             <View 
               style={[
-                styles.storageBarSegment,
-                styles.cacheSegment,
-                { flex: parseFloat(storageInfo.cacheSize) || 0.1 }
+                styles.storageBarSegment, 
+                styles.cacheSegment, 
+                { backgroundColor: isDark ? '#6A5ACD' : '#8A7ADC' }
               ]} 
             />
             <View 
               style={[
-                styles.storageBarSegment,
-                styles.documentSegment,
-                { flex: parseFloat(storageInfo.documentSize) || 0.1 }
+                styles.storageBarSegment, 
+                styles.documentsSegment, 
+                { backgroundColor: isDark ? '#4682B4' : '#5692C4' }
               ]} 
             />
             <View 
               style={[
-                styles.storageBarSegment,
-                styles.mediaSegment,
-                { flex: parseFloat(storageInfo.mediaSize) || 0.1 }
+                styles.storageBarSegment, 
+                styles.mediaSegment, 
+                { backgroundColor: isDark ? '#20B2AA' : '#30C2BA' }
               ]} 
             />
           </View>
-          <View style={styles.storageLabels}>
-            <View style={styles.storageLabelItem}>
-              <View style={[styles.storageLabelColor, styles.cacheColor]} />
-              <Text style={styles.storageLabelText}>{t('settings.cache')} ({storageInfo.cacheSize})</Text>
+          
+          <View style={styles.legendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: isDark ? '#6A5ACD' : '#8A7ADC' }]} />
+              <Text style={[styles.legendText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+                {t('settings.cache')}: {storageInfo.cacheSize}
+              </Text>
             </View>
-            <View style={styles.storageLabelItem}>
-              <View style={[styles.storageLabelColor, styles.documentColor]} />
-              <Text style={styles.storageLabelText}>{t('settings.documents')} ({storageInfo.documentSize})</Text>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: isDark ? '#4682B4' : '#5692C4' }]} />
+              <Text style={[styles.legendText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+                {t('settings.documents')}: {storageInfo.documentSize}
+              </Text>
             </View>
-            <View style={styles.storageLabelItem}>
-              <View style={[styles.storageLabelColor, styles.mediaColor]} />
-              <Text style={styles.storageLabelText}>{t('settings.media')} ({storageInfo.mediaSize})</Text>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: isDark ? '#20B2AA' : '#30C2BA' }]} />
+              <Text style={[styles.legendText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+                {t('settings.media')}: {storageInfo.mediaSize}
+              </Text>
             </View>
           </View>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.storageManagement')}</Text>
+        
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('settings.dataManagement')}
+          </Text>
           
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[
+              styles.actionButton, 
+              { 
+                backgroundColor: isDark ? '#111' : colors.surfaceVariant,
+                borderBottomColor: isDark ? '#222' : colors.border 
+              }
+            ]}
             onPress={clearCache}
             disabled={isClearing}
           >
-            <View style={styles.actionButtonContent}>
-              <Ionicons name="trash-outline" size={24} color="white" />
+            <View style={styles.actionContent}>
+              <Ionicons name="trash-outline" size={22} color={isDark ? '#ccc' : colors.textSecondary} />
               <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>{t('settings.clearCache')}</Text>
-                <Text style={styles.actionDescription}>{t('settings.clearCacheDescription')}</Text>
+                <Text style={[styles.actionTitle, { color: isDark ? colors.text : colors.text }]}>
+                  {t('settings.clearCache')}
+                </Text>
+                <Text style={[styles.actionDescription, { color: isDark ? '#999' : colors.textTertiary }]}>
+                  {t('settings.clearCacheDesc')}
+                </Text>
               </View>
             </View>
             {isClearing ? (
-              <ActivityIndicator size="small" color="#FF4040" />
+              <ActivityIndicator size="small" color={colors.accent} />
             ) : (
-              <Ionicons name="chevron-forward" size={22} color="#666" />
+              <Text style={[styles.actionSize, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+                {storageInfo.cacheSize}
+              </Text>
             )}
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[
+              styles.actionButton, 
+              { backgroundColor: isDark ? '#111' : colors.surfaceVariant }
+            ]}
             onPress={clearAllData}
             disabled={isClearing}
           >
-            <View style={styles.actionButtonContent}>
-              <Ionicons name="alert-circle-outline" size={24} color="#FF4040" />
+            <View style={styles.actionContent}>
+              <Ionicons name="trash-bin-outline" size={22} color={isDark ? '#ccc' : colors.textSecondary} />
               <View style={styles.actionTextContainer}>
-                <Text style={[styles.actionTitle, styles.dangerText]}>{t('settings.clearAllData')}</Text>
-                <Text style={styles.actionDescription}>{t('settings.clearAllDataDescription')}</Text>
+                <Text style={[styles.actionTitle, { color: isDark ? colors.text : colors.text }]}>
+                  {t('settings.clearAllData')}
+                </Text>
+                <Text style={[styles.actionDescription, { color: isDark ? '#999' : colors.textTertiary }]}>
+                  {t('settings.clearAllDataDesc')}
+                </Text>
               </View>
             </View>
             {isClearing ? (
-              <ActivityIndicator size="small" color="#FF4040" />
+              <ActivityIndicator size="small" color={colors.accent} />
             ) : (
-              <Ionicons name="chevron-forward" size={22} color="#666" />
+              <Text style={[styles.actionSize, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+                {storageInfo.totalSize}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.networkUsage')}</Text>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoItemLabel}>{t('settings.dataUsage')}</Text>
-            <Text style={styles.infoItemValue}>24.5 MB</Text>
-          </View>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoItemLabel}>{t('settings.wifiUsage')}</Text>
-            <Text style={styles.infoItemValue}>156.2 MB</Text>
-          </View>
-        </View>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoBoxTitle}>{t('settings.aboutStorage')}</Text>
-          <Text style={styles.infoBoxText}>{t('settings.storageInfo')}</Text>
-        </View>
+        
+        <Text style={[styles.disclaimer, { color: isDark ? '#999' : colors.textTertiary }]}>
+          {t('settings.storageDisclaimer')}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -338,38 +404,33 @@ const StorageScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 15,
   },
   storageOverview: {
-    backgroundColor: '#111',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
   },
-  totalStorageText: {
-    color: '#999',
+  overviewTitle: {
     fontSize: 14,
+    marginBottom: 8,
   },
-  totalStorageValue: {
-    color: 'white',
+  totalSize: {
     fontSize: 32,
     fontWeight: 'bold',
     marginVertical: 8,
@@ -379,54 +440,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#222',
     marginTop: 8,
   },
   storageBarSegment: {
     height: '100%',
   },
   cacheSegment: {
-    backgroundColor: '#FF4040',
+    width: '40%', // 这里应该动态计算，但为了简化先使用固定值
   },
-  documentSegment: {
-    backgroundColor: '#40A0FF',
+  documentsSegment: {
+    width: '20%', // 这里应该动态计算，但为了简化先使用固定值
   },
   mediaSegment: {
-    backgroundColor: '#40FF40',
+    width: '40%', // 这里应该动态计算，但为了简化先使用固定值
   },
-  storageLabels: {
+  legendContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 12,
   },
-  storageLabelItem: {
+  legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  storageLabelColor: {
+  legendColor: {
     width: 12,
     height: 12,
     borderRadius: 6,
     marginRight: 6,
   },
-  cacheColor: {
-    backgroundColor: '#FF4040',
-  },
-  documentColor: {
-    backgroundColor: '#40A0FF',
-  },
-  mediaColor: {
-    backgroundColor: '#40FF40',
-  },
-  storageLabelText: {
-    color: '#999',
+  legendText: {
     fontSize: 12,
   },
   section: {
     marginBottom: 20,
+    borderRadius: 10,
+    padding: 15,
   },
   sectionTitle: {
-    color: '#999',
     fontSize: 14,
     marginBottom: 12,
   },
@@ -434,12 +485,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#111',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
   },
-  actionButtonContent: {
+  actionContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
@@ -449,50 +499,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionTitle: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 4,
   },
   actionDescription: {
-    color: '#999',
     fontSize: 12,
   },
-  dangerText: {
-    color: '#FF4040',
-  },
-  infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  infoItemLabel: {
-    color: 'white',
+  actionSize: {
     fontSize: 16,
   },
-  infoItemValue: {
-    color: '#999',
-    fontSize: 16,
-  },
-  infoBox: {
-    backgroundColor: '#111',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 30,
-  },
-  infoBoxTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  infoBoxText: {
-    color: '#999',
+  disclaimer: {
     fontSize: 14,
-    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -500,9 +520,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#999',
     fontSize: 16,
-    marginTop: 12,
+    marginTop: 10,
   },
 });
 

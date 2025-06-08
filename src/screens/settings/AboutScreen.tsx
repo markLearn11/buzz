@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../../config/env';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../themes/ThemeProvider';
 
 // 应用信息接口
 interface AppInfo {
@@ -28,6 +29,7 @@ const AboutScreen = () => {
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
+  const { isDark, colors } = useTheme();
   const [appInfo, setAppInfo] = useState<AppInfo>({
     name: 'Buzz',
     version: '1.0.0',
@@ -144,127 +146,309 @@ const AboutScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+        <View style={[
+          styles.header, 
+          { 
+            backgroundColor: isDark ? colors.primary : colors.white,
+            borderBottomColor: isDark ? '#333' : colors.border 
+          }
+        ]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('settings.about')}</Text>
+          <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+            {t('settings.about')}
+          </Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF4040" />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: isDark ? '#ccc' : colors.textSecondary }]}>
+            {t('common.loading')}
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.primary : colors.white }]}>
+      <View style={[
+        styles.header, 
+        { 
+          backgroundColor: isDark ? colors.primary : colors.white,
+          borderBottomColor: isDark ? '#333' : colors.border 
+        }
+      ]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={isDark ? colors.text : colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.about')}</Text>
+        <Text style={[styles.headerTitle, { color: isDark ? colors.text : colors.text }]}>
+          {t('settings.about')}
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={[styles.content, { backgroundColor: isDark ? colors.primary : colors.white }]}>
         <View style={styles.appHeader}>
           <Image 
             source={require('../../../assets/icon.png')} 
             style={styles.appIcon}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>{appInfo.name}</Text>
-          <Text style={styles.appVersion}>{t('about.version')} {appInfo.version} ({appInfo.buildNumber})</Text>
+          <Text style={[styles.appName, { color: isDark ? colors.text : colors.text }]}>
+            {appInfo.name}
+          </Text>
+          <Text style={[styles.appVersion, { color: isDark ? '#999' : colors.textTertiary }]}>
+            {t('about.version')} {appInfo.version} ({appInfo.buildNumber})
+          </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('about.appIntro')}</Text>
-          <Text style={styles.description}>{appInfo.description}</Text>
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('about.appIntro')}
+          </Text>
+          <Text style={[styles.description, { color: isDark ? colors.text : colors.text }]}>
+            {appInfo.description}
+          </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('about.keyFeatures')}</Text>
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('about.keyFeatures')}
+          </Text>
           {appInfo.features.map((feature, index) => (
             <View key={index} style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#40FF80" />
-              <Text style={styles.featureText}>{feature}</Text>
+              <Ionicons 
+                name="checkmark-circle" 
+                size={20} 
+                color={isDark ? '#40FF80' : '#30CC60'} 
+              />
+              <Text style={[styles.featureText, { color: isDark ? colors.text : colors.text }]}>
+                {feature}
+              </Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('about.contactUs')}</Text>
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('about.contactUs')}
+          </Text>
           
-          <TouchableOpacity style={styles.contactItem} onPress={openWebsite}>
-            <Ionicons name="globe-outline" size={22} color="#ccc" />
-            <Text style={styles.contactText}>{t('about.officialWebsite')}</Text>
-            <Ionicons name="open-outline" size={20} color="#666" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.contactItem} onPress={sendEmail}>
-            <Ionicons name="mail-outline" size={22} color="#ccc" />
-            <Text style={styles.contactText}>{t('about.contactEmail')}</Text>
-            <Ionicons name="open-outline" size={20} color="#666" />
+          <TouchableOpacity 
+            style={[
+              styles.contactItem, 
+              { borderBottomColor: isDark ? '#222' : colors.border }
+            ]} 
+            onPress={openWebsite}
+          >
+            <Ionicons name="globe-outline" size={22} color={isDark ? '#ccc' : colors.textSecondary} />
+            <View style={styles.contactTextContainer}>
+              <Text style={[styles.contactTitle, { color: isDark ? colors.text : colors.text }]}>
+                {t('about.website')}
+              </Text>
+              <Text style={[styles.contactValue, { color: colors.accent }]}>
+                {appInfo.website}
+              </Text>
+            </View>
+            <Ionicons name="open-outline" size={20} color={isDark ? '#666' : colors.textTertiary} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.contactItem} 
-            onPress={() => openSocialMedia('https://weibo.com/example')}
+            onPress={sendEmail}
           >
-            <Ionicons name="logo-twitter" size={22} color="#ccc" />
-            <Text style={styles.contactText}>{t('about.officialWeibo')}</Text>
-            <Ionicons name="open-outline" size={20} color="#666" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.contactItem} 
-            onPress={() => openSocialMedia('https://example.com/wechat')}
-          >
-            <Ionicons name="chatbubbles-outline" size={22} color="#ccc" />
-            <Text style={styles.contactText}>{t('about.officialWechat')}</Text>
-            <Ionicons name="open-outline" size={20} color="#666" />
+            <Ionicons name="mail-outline" size={22} color={isDark ? '#ccc' : colors.textSecondary} />
+            <View style={styles.contactTextContainer}>
+              <Text style={[styles.contactTitle, { color: isDark ? colors.text : colors.text }]}>
+                {t('about.email')}
+              </Text>
+              <Text style={[styles.contactValue, { color: colors.accent }]}>
+                {appInfo.email}
+              </Text>
+            </View>
+            <Ionicons name="open-outline" size={20} color={isDark ? '#666' : colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
-        {appInfo.deviceName && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('about.deviceInfo')}</Text>
-            <View style={styles.deviceInfoItem}>
-              <Text style={styles.deviceInfoLabel}>{t('about.deviceName')}</Text>
-              <Text style={styles.deviceInfoValue}>{appInfo.deviceName}</Text>
-            </View>
-            <View style={styles.deviceInfoItem}>
-              <Text style={styles.deviceInfoLabel}>{t('about.deviceModel')}</Text>
-              <Text style={styles.deviceInfoValue}>{appInfo.deviceModel}</Text>
-            </View>
-            <View style={styles.deviceInfoItem}>
-              <Text style={styles.deviceInfoLabel}>{t('about.operatingSystem')}</Text>
-              <Text style={styles.deviceInfoValue}>{appInfo.deviceOS}</Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.legalLinks}>
-          <TouchableOpacity 
-            style={styles.legalButton}
-            onPress={() => navigation.navigate('TermsScreen')}
-          >
-            <Text style={styles.legalButtonText}>{t('settings.terms')}</Text>
-          </TouchableOpacity>
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('about.followUs')}
+          </Text>
           
+          <View style={styles.socialButtons}>
+            <TouchableOpacity 
+              style={[
+                styles.socialButton, 
+                { backgroundColor: isDark ? '#1877F2' : '#1877F2' }
+              ]} 
+              onPress={() => openSocialMedia('https://facebook.com')}
+            >
+              <Ionicons name="logo-facebook" size={20} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.socialButton, 
+                { backgroundColor: isDark ? '#1DA1F2' : '#1DA1F2' }
+              ]} 
+              onPress={() => openSocialMedia('https://twitter.com')}
+            >
+              <Ionicons name="logo-twitter" size={20} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.socialButton, 
+                { backgroundColor: isDark ? '#E4405F' : '#E4405F' }
+              ]} 
+              onPress={() => openSocialMedia('https://instagram.com')}
+            >
+              <Ionicons name="logo-instagram" size={20} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.socialButton, 
+                { backgroundColor: isDark ? '#FF0000' : '#FF0000' }
+              ]} 
+              onPress={() => openSocialMedia('https://youtube.com')}
+            >
+              <Ionicons name="logo-youtube" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[
+          styles.section, 
+          { 
+            backgroundColor: isDark ? '#111' : colors.secondary,
+            borderColor: isDark ? '#222' : colors.border 
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle, 
+            { 
+              color: isDark ? '#ccc' : colors.textSecondary,
+              borderBottomColor: isDark ? '#222' : colors.border 
+            }
+          ]}>
+            {t('about.deviceInfo')}
+          </Text>
+          
+          <View style={styles.infoItem}>
+            <Text style={[styles.infoLabel, { color: isDark ? '#999' : colors.textTertiary }]}>
+              {t('about.deviceName')}
+            </Text>
+            <Text style={[styles.infoValue, { color: isDark ? colors.text : colors.text }]}>
+              {appInfo.deviceName || t('about.unknownDevice')}
+            </Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={[styles.infoLabel, { color: isDark ? '#999' : colors.textTertiary }]}>
+              {t('about.deviceModel')}
+            </Text>
+            <Text style={[styles.infoValue, { color: isDark ? colors.text : colors.text }]}>
+              {appInfo.deviceModel || t('about.unknownModel')}
+            </Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={[styles.infoLabel, { color: isDark ? '#999' : colors.textTertiary }]}>
+              {t('about.operatingSystem')}
+            </Text>
+            <Text style={[styles.infoValue, { color: isDark ? colors.text : colors.text }]}>
+              {appInfo.deviceOS || `${Platform.OS} ${Platform.Version}`}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[
+          styles.legalLinks, 
+          { backgroundColor: isDark ? '#111' : colors.secondary }
+        ]}>
           <TouchableOpacity 
-            style={styles.legalButton}
+            style={[
+              styles.legalLink, 
+              { 
+                backgroundColor: isDark ? '#222' : colors.surfaceVariant,
+                borderColor: isDark ? '#333' : colors.border,
+                borderWidth: 1
+              }
+            ]} 
             onPress={() => navigation.navigate('PrivacyPolicy')}
           >
-            <Text style={styles.legalButtonText}>{t('settings.privacyPolicy')}</Text>
+            <Text style={[styles.legalLinkText, { color: colors.accent }]}>
+              {t('settings.privacyPolicy')}
+            </Text>
+          </TouchableOpacity>
+          <View style={{ width: 15 }} />
+          <TouchableOpacity 
+            style={[
+              styles.legalLink, 
+              { 
+                backgroundColor: isDark ? '#222' : colors.surfaceVariant,
+                borderColor: isDark ? '#333' : colors.border,
+                borderWidth: 1
+              }
+            ]} 
+            onPress={() => navigation.navigate('TermsScreen')}
+          >
+            <Text style={[styles.legalLinkText, { color: colors.accent }]}>
+              {t('settings.terms')}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.copyright}>
+        <Text style={[styles.copyright, { color: isDark ? '#999' : colors.textTertiary }]}>
           © {new Date().getFullYear()} {appInfo.developer}. {t('about.allRightsReserved')}
         </Text>
       </ScrollView>
@@ -275,25 +459,22 @@ const AboutScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 15,
   },
   appHeader: {
     alignItems: 'center',
@@ -308,12 +489,9 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
   },
   appVersion: {
     fontSize: 14,
-    color: '#999',
   },
   section: {
     backgroundColor: '#111',
@@ -324,12 +502,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
     marginBottom: 12,
   },
   description: {
     fontSize: 14,
-    color: '#ccc',
     lineHeight: 20,
   },
   featureItem: {
@@ -339,7 +515,6 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 14,
-    color: '#ccc',
     marginLeft: 10,
   },
   contactItem: {
@@ -349,11 +524,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
-  contactText: {
-    fontSize: 15,
-    color: 'white',
+  contactTextContainer: {
     flex: 1,
     marginLeft: 12,
+  },
+  contactTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  contactValue: {
+    fontSize: 14,
   },
   deviceInfoItem: {
     flexDirection: 'row',
@@ -373,22 +553,27 @@ const styles = StyleSheet.create({
   legalLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 10,
     marginBottom: 16,
+    borderRadius: 10,
   },
-  legalButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#222',
-    borderRadius: 20,
-    marginHorizontal: 8,
+  legalLink: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 120,
   },
-  legalButtonText: {
+  legalLinkText: {
     fontSize: 14,
-    color: '#ccc',
+    fontWeight: '500',
+  },
+  legalDivider: {
+    width: 1,
   },
   copyright: {
     fontSize: 12,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -398,9 +583,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#999',
     fontSize: 16,
-    marginTop: 12,
+    marginTop: 10,
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  socialButton: {
+    padding: 12,
+    borderRadius: 20,
+    marginHorizontal: 4,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#999',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: 'white',
   },
 });
 

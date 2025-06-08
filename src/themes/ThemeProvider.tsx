@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
+import { useColorScheme, View } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../store';
 import { setDarkMode, initializeTheme } from '../store/slices/themeSlice';
 import { ThemeColors, ThemeMode, getTheme, getFontSizes, TextSize } from './index';
@@ -26,8 +26,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const dispatch = useAppDispatch();
   const { isDarkMode, followSystem, textSize, isLoading } = useAppSelector((state) => state.theme);
   const systemColorScheme = useColorScheme(); // 获取系统颜色方案
-
-  // 初始化主题
+  // 添加主题过渡状态，用于缓存当前应用的主题
+  const [currentThemeState, setCurrentThemeState] = useState(isDarkMode);
+  
+  // 初始化主题 - 只在组件挂载时执行一次
   useEffect(() => {
     dispatch(initializeTheme());
   }, [dispatch]);
@@ -39,17 +41,27 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [followSystem, systemColorScheme, dispatch]);
 
-  // 获取当前主题颜色
-  const currentTheme = isDarkMode ? ThemeMode.DARK : ThemeMode.LIGHT;
-  const colors = getTheme(currentTheme);
-  const fonts = getFontSizes(textSize);
+  // 监听主题变化，确保一致性
+  useEffect(() => {
+    // 简单直接地更新主题状态
+    setCurrentThemeState(isDarkMode);
+  }, [isDarkMode]);
 
-  const themeContextValue: ThemeContextType = {
-    colors,
-    isDark: isDarkMode,
-    textSize,
-    fonts,
-  };
+  // 使用useMemo优化性能，避免不必要的重新计算
+  const themeContextValue = useMemo(() => {
+    // 获取当前主题颜色
+    // 使用缓存的主题状态，确保过渡的一致性
+    const currentTheme = currentThemeState ? ThemeMode.DARK : ThemeMode.LIGHT;
+    const colors = getTheme(currentTheme);
+    const fonts = getFontSizes(textSize);
+
+    return {
+      colors,
+      isDark: currentThemeState, // 使用缓存的主题状态
+      textSize,
+      fonts,
+    };
+  }, [currentThemeState, textSize]);
 
   // 当主题正在加载时，使用默认主题（暗色）
   return (
