@@ -168,6 +168,7 @@ const MainTabs = () => {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(); // 使用翻译hook
   const { isDark, colors } = useTheme();
+  const [currentTab, setCurrentTab] = React.useState('Home');
   
   return (
     <Tab.Navigator
@@ -198,10 +199,13 @@ const MainTabs = () => {
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: isDark ? '#888888' : '#666666',
-        tabBarStyle: {
-          backgroundColor: isDark ? colors.surface : colors.white,
-          borderTopColor: isDark ? colors.border : '#E0E0E0',
-        },
+        // 根据当前选中的标签决定是否显示标签栏
+        tabBarStyle: currentTab === 'Create' ? 
+          { display: 'none' } : 
+          {
+            backgroundColor: isDark ? colors.surface : colors.white,
+            borderTopColor: isDark ? colors.border : '#E0E0E0',
+          },
         headerShown: false,
       })}
       screenListeners={{
@@ -209,10 +213,20 @@ const MainTabs = () => {
           // 获取目标tab的名称
           const targetTab = e.target?.split('-')[0];
           if (targetTab) {
+            // 设置当前选中的标签
+            setCurrentTab(targetTab);
             // 更新当前活动tab
             dispatch(setActiveTab(targetTab));
           }
         },
+        state: (e) => {
+          // 从state事件中获取当前活动tab
+          const state = e.data.state;
+          if (state && state.index >= 0) {
+            const activeRouteName = state.routes[state.index].name;
+            setCurrentTab(activeRouteName);
+          }
+        }
       }}
     >
       <Tab.Screen 

@@ -18,6 +18,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../themes/ThemeProvider';
 
 // 模拟滤镜数据
 const FILTERS = [
@@ -50,6 +51,7 @@ const VideoEditorScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { videoUri } = route.params || {};
+  const { isDark } = useTheme();
   
   const [description, setDescription] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('original');

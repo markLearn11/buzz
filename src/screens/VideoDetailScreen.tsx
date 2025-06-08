@@ -324,14 +324,25 @@ const VideoDetailScreen = () => {
   };
   
   // 提交评论处理函数
-  const handleSubmitComment = async (text: string) => {
-    if (!text.trim() || isSubmitting) return;
+  const handleSubmitComment = async (data: {
+    text?: string;
+    images?: any[];
+    emojis?: {
+      type: 'static' | 'animated' | null;
+      id: string | null;
+      position: number | null;
+    }[];
+  }) => {
+    if ((!data.text || !data.text.trim()) && (!data.images || data.images.length === 0) && (!data.emojis || data.emojis.length === 0)) return;
+    if (isSubmitting) return;
     
     try {
       setIsSubmitting(true);
       await dispatch(addCommentAsync({ 
         videoId, 
-        content: text.trim(),
+        text: data.text?.trim(),
+        images: data.images,
+        emojis: data.emojis
       })).unwrap();
     } catch (error: any) {
       console.error('评论提交失败:', error);
