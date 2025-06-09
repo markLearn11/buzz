@@ -77,8 +77,8 @@ const CreateScreen = () => {
   // 基础状态
   const [hasPermission, setHasPermission] = useState(null);
   const [cameraType, setCameraType] = useState(CameraType.back);
-  const [isRecording, setIsRecording] = useState(false);
   const [flashMode, setFlashMode] = useState(FlashMode.off);
+  const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [timerInterval, setTimerInterval] = useState(null);
   
@@ -88,7 +88,10 @@ const CreateScreen = () => {
   const [galleryItems, setGalleryItems] = useState([]);
   const [showSpeedOptions, setShowSpeedOptions] = useState(false);
   const [recordingSpeed, setRecordingSpeed] = useState('1x');
-  const [beautifyEnabled, setBeautifyEnabled] = useState(true);
+  const [beautifyEnabled, setBeautifyEnabled] = useState(false);
+  const [showCountdownModal, setShowCountdownModal] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [countdownValue, setCountdownValue] = useState(3);
   
   // 多媒体选择状态
   const [selectedMedia, setSelectedMedia] = useState([]);
@@ -155,46 +158,27 @@ const CreateScreen = () => {
     }
   };
   
-  // 开始录制
+  // 拍照
+  const takePhoto = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
+      // TODO: 跳转到图片编辑页或预览
+      alert('拍照完成: ' + photo.uri);
+    }
+  };
+  
+  // 录制视频
   const startRecording = async () => {
     if (cameraRef.current) {
+      setIsRecording(true);
       try {
-        setIsRecording(true);
-        
-        // 开始计时
-        const interval = setInterval(() => {
-          setRecordingDuration((prev) => prev + 1);
-        }, 1000);
-        setTimerInterval(interval);
-        
-        // 录制参数根据速度调整
-        const speedMultiplier = parseFloat(recordingSpeed.replace('x', ''));
-        const maxDuration = 60 / speedMultiplier; // 根据速度调整最大时长
-        
-        const video = await cameraRef.current.recordAsync({
-          maxDuration: maxDuration,
-          quality: '720p',
-          mute: false,
-          // 添加更多录制参数，如果支持的话
-        });
-        
-        clearInterval(interval);
-        setTimerInterval(null);
-        setRecordingDuration(0);
+        const video = await cameraRef.current.recordAsync({ quality: '720p', maxDuration: 60 });
         setIsRecording(false);
-        
-        navigation.navigate('VideoEditor', { 
-          videoUri: video.uri,
-          speed: recordingSpeed,
-          beautify: beautifyEnabled
-        });
-      } catch (error) {
-        console.error('录制视频失败:', error);
+        // TODO: 跳转到视频编辑页或预览
+        alert('录制完成: ' + video.uri);
+      } catch (e) {
         setIsRecording(false);
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-        setRecordingDuration(0);
-        Alert.alert('错误', '录制视频失败，请重试。');
+        alert('录制失败');
       }
     }
   };
@@ -203,10 +187,6 @@ const CreateScreen = () => {
   const stopRecording = async () => {
     if (cameraRef.current && isRecording) {
       cameraRef.current.stopRecording();
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-      setRecordingDuration(0);
-      setIsRecording(false);
     }
   };
   
@@ -339,9 +319,9 @@ const CreateScreen = () => {
   const renderSideTools = () => (
     <View style={styles.sideToolsWrap2}>
       {SIDE_TOOLS.map((tool, idx) => (
-        <TouchableOpacity key={tool.id} style={[styles.sideToolBtn2, idx === 2 && { marginBottom: 18 }]} onPress={tool.onPress} activeOpacity={0.85}>
+        <TouchableOpacity key={tool.id} style={[styles.sideToolBtn2, idx === 2 && { marginBottom: 18 }]} onPress={() => handleSideTool(tool.id)} activeOpacity={0.85}>
           <View style={styles.sideToolCircle2}>
-            <Ionicons name={tool.icon} size={24} color="#fff" />
+            <Ionicons name={tool.icon} size={24} color={tool.id === 'beauty' && beautifyEnabled ? '#FF4040' : '#fff'} />
           </View>
           <Text style={styles.sideToolLabel2}>{tool.label}</Text>
         </TouchableOpacity>
@@ -372,12 +352,84 @@ const CreateScreen = () => {
     </View>
   );
   
+  // 倒计时逻辑
+  const handleCountdown = (action) => {
+    setShowCountdownModal(false);
+    setCountdown(countdownValue);
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setCountdown(0);
+          if (action === 'photo') takePhoto();
+          if (action === 'video') startRecording();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // 右侧工具栏功能实现
+  const handleSideTool = (id) => {
+    switch (id) {
+      case 'flip':
+        setCameraType(cameraType === CameraType.back ? CameraType.front : CameraType.back);
+        break;
+      case 'timer':
+        setShowCountdownModal(true);
+        break;
+      case 'beauty':
+        setBeautifyEnabled(!beautifyEnabled);
+        break;
+      case 'more':
+        alert('更多功能敬请期待');
+        break;
+      case 'challenge':
+      case 'inspiration':
+        alert('该功能暂未实现');
+        break;
+      default:
+        break;
+    }
+  };
+  
   // 内容区（全屏Camera/图片/视频）
   const renderContentPreview = () => (
     <View style={styles.previewWrap}>
-      {/* 这里可放Camera或图片/视频预览 */}
-      <View style={styles.previewPlaceholder} />
+      {hasPermission ? (
+        <Camera
+          ref={cameraRef}
+          style={styles.previewPlaceholder}
+          type={cameraType}
+          flashMode={flashMode}
+          ratio="16:9"
+          // TODO: 美颜/滤镜参数可扩展
+        />
+      ) : (
+        <View style={styles.previewPlaceholder} />
+      )}
       {renderSideTools()}
+      {/* 倒计时数字显示 */}
+      {countdown > 0 && (
+        <View style={styles.countdownOverlay}><Text style={styles.countdownText}>{countdown}</Text></View>
+      )}
+      {/* 倒计时选择弹窗 */}
+      <Modal visible={showCountdownModal} transparent animationType="fade">
+        <View style={styles.countdownModalBg}>
+          <View style={styles.countdownModalCard}>
+            <Text style={styles.countdownModalTitle}>选择倒计时</Text>
+            {[3, 5, 10].map(val => (
+              <TouchableOpacity key={val} style={styles.countdownOption} onPress={() => { setCountdownValue(val); handleCountdown(selectedContentType === 'photo' ? 'photo' : 'video'); }}>
+                <Text style={styles.countdownOptionText}>{val} 秒</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.countdownCancel} onPress={() => setShowCountdownModal(false)}>
+              <Text style={styles.countdownCancelText}>取消</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
   
@@ -388,7 +440,14 @@ const CreateScreen = () => {
         <View style={styles.bottomBarIconCircle}><Ionicons name="sparkles-outline" size={28} color="#fff" /></View>
         <Text style={styles.bottomBarBtnText}>特效</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.mainActionBtn3}>
+      <TouchableOpacity
+        style={styles.mainActionBtn3}
+        onPress={() => {
+          if (selectedContentType === 'photo') takePhoto();
+          else if (selectedContentType === 'video') isRecording ? stopRecording() : startRecording();
+          else alert('该模式暂未实现');
+        }}
+      >
         <LinearGradient colors={["#FF4040", "#FF7B7B"]} style={styles.mainActionBtnBg3}>
           <Ionicons name={selectedContentType === 'photo' ? 'camera' : 'videocam'} size={38} color="#fff" />
         </LinearGradient>
@@ -1286,6 +1345,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     marginLeft: 4,
     overflow: 'hidden',
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  countdownText: {
+    color: '#fff',
+    fontSize: 80,
+    fontWeight: 'bold',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 8,
+  },
+  countdownModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countdownModalCard: {
+    backgroundColor: '#222',
+    borderRadius: 18,
+    padding: 28,
+    alignItems: 'center',
+    width: 220,
+  },
+  countdownModalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 18,
+  },
+  countdownOption: {
+    backgroundColor: '#333',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    marginVertical: 6,
+  },
+  countdownOptionText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  countdownCancel: {
+    marginTop: 16,
+  },
+  countdownCancelText: {
+    color: '#FF4040',
+    fontSize: 15,
   },
 });
 
