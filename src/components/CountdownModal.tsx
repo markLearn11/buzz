@@ -1,5 +1,16 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Dimensions
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface CountdownModalProps {
   visible: boolean;
@@ -7,63 +18,105 @@ interface CountdownModalProps {
   onCancel: () => void;
 }
 
-const CountdownModal: React.FC<CountdownModalProps> = ({ visible, onSelect, onCancel }) => {
+const CountdownModal: React.FC<CountdownModalProps> = ({
+  visible,
+  onSelect,
+  onCancel
+}) => {
+  // 倒计时选项（秒）
+  const countdownOptions = [3, 5, 10];
+  
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.bg}>
-        <View style={styles.card}>
-          <Text style={styles.title}>选择倒计时</Text>
-          {[3, 5, 10].map(val => (
-            <TouchableOpacity key={val} style={styles.option} onPress={() => onSelect(val)}>
-              <Text style={styles.optionText}>{val} 秒</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={styles.cancel} onPress={onCancel}>
-            <Text style={styles.cancelText}>取消</Text>
-          </TouchableOpacity>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <TouchableWithoutFeedback onPress={onCancel}>
+        <View style={styles.container}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modal}>
+              <Text style={styles.title}>设置倒计时</Text>
+              
+              <View style={styles.optionsContainer}>
+                {countdownOptions.map((seconds) => (
+                  <TouchableOpacity
+                    key={seconds}
+                    style={styles.optionButton}
+                    onPress={() => onSelect(seconds)}
+                  >
+                    <View style={styles.optionInner}>
+                      <Ionicons name="timer-outline" size={24} color="#fff" />
+                      <Text style={styles.optionText}>{seconds}秒</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+                <Text style={styles.cancelText}>取消</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  bg: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
-  card: {
+  modal: {
+    width: screenWidth * 0.8,
     backgroundColor: '#222',
-    borderRadius: 18,
-    padding: 28,
+    borderRadius: 15,
+    padding: 20,
     alignItems: 'center',
-    width: 220,
   },
   title: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 18,
+    marginBottom: 20,
   },
-  option: {
-    backgroundColor: '#333',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 32,
-    marginVertical: 6,
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: 20,
+  },
+  optionButton: {
+    alignItems: 'center',
+  },
+  optionInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FF4040',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   optionText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
+    marginTop: 5,
   },
-  cancel: {
-    marginTop: 16,
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 20,
+    backgroundColor: '#333',
   },
   cancelText: {
-    color: '#FF4040',
-    fontSize: 15,
+    color: '#fff',
+    fontSize: 16,
   },
 });
 
